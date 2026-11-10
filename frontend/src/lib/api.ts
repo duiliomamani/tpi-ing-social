@@ -137,7 +137,15 @@ export async function purgeLabData(): Promise<any> {
 }
 
 export function getAudioUrl(filename: string): string {
-  if (filename.startsWith("http://") || filename.startsWith("https://")) return filename;
+  if (!filename) return "";
+  if (
+    filename.startsWith("blob:") ||
+    filename.startsWith("http://") ||
+    filename.startsWith("https://") ||
+    filename.startsWith("data:")
+  ) {
+    return filename;
+  }
   const cleanName = filename.replace(/^\/api\/audio\//, "");
   return `http://localhost:8000/api/audio/${cleanName}`;
 }

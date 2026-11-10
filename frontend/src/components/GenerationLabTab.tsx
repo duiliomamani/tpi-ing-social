@@ -262,10 +262,10 @@ export const GenerationLabTab: React.FC = () => {
                 <span>Sample Rate: {referenceInfo.sample_rate} Hz</span>
                 <span>Canales: {referenceInfo.channels === 1 ? "Mono" : "Stereo"}</span>
               </div>
-              {recordedBlobUrl && (
+              {(referenceInfo?.audio_url || recordedBlobUrl) && (
                 <div className="pt-2">
                   <AudioPlayer
-                    audioUrl={recordedBlobUrl}
+                    audioUrl={referenceInfo?.audio_url || recordedBlobUrl}
                     isSynthetic={false}
                     title="Muestra Biológica Original del Titular"
                   />

@@ -66,7 +66,8 @@ async def upload_voice_reference(
 
     return {
         "reference_id": ref_id,
-        "filename": file.filename,
+        "filename": f"{ref_id}.wav",
+        "audio_url": f"/api/audio/{ref_id}.wav",
         "duration_seconds": duration,
         "sample_rate": sample_rate,
         "channels": channels,

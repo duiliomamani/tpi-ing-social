@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+.venv/
+env/
+venv/
+ENV/
+*.db
+*.sqlite3
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+.npm/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary audio files
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/experiments/*
+!backend/data/experiments/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

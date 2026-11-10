@@ -1,0 +1,46 @@
+import os
+from pathlib import Path
+from pydantic import BaseModel
+
+class Settings(BaseModel):
+    APP_NAME: str = "VoiceShield Lab — Vishing & Synthetic Audio Defense"
+    VERSION: str = "1.0.0"
+    DEBUG: bool = True
+    
+    # Paths
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+    DATA_DIR: Path = BASE_DIR / "data"
+    AUDIO_SAMPLES_DIR: Path = DATA_DIR / "audio_samples"
+    UPLOADS_DIR: Path = DATA_DIR / "uploads"
+    EXPERIMENTS_DIR: Path = DATA_DIR / "experiments"
+    WEIGHTS_DIR: Path = BASE_DIR / "weights"
+    DB_PATH: Path = DATA_DIR / "voiceshield.db"
+    
+    # Model Configurations
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+    
+    WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")
+    WHISPER_LANGUAGE: str = "es"
+    
+    AASIST_WEIGHTS_PATH: Path = WEIGHTS_DIR / "AASIST.pth"
+    
+    # Audio constants
+    TARGET_SAMPLE_RATE: int = 16000
+    MAX_UPLOAD_SIZE_BYTES: int = 25 * 1024 * 1024  # 25 MB
+    MAX_AUDIO_DURATION_SECONDS: float = 120.0  # 2 minutes for lab demos
+    
+    # Academic Label
+    SYNTHETIC_AUDIO_BANNER: str = "AUDIO SINTÉTICO — DEMOSTRACIÓN ACADÉMICA"
+
+settings = Settings()
+
+# Ensure directories exist
+for directory in [
+    settings.DATA_DIR,
+    settings.AUDIO_SAMPLES_DIR,
+    settings.UPLOADS_DIR,
+    settings.EXPERIMENTS_DIR,
+    settings.WEIGHTS_DIR,
+]:
+    directory.mkdir(parents=True, exist_ok=True)

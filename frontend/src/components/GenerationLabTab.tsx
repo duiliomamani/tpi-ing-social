@@ -51,18 +51,22 @@ export const GenerationLabTab: React.FC = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const recorder = new MediaRecorder(stream);
+      const mimeType = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "");
+      
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
         const url = URL.createObjectURL(audioBlob);
         setRecordedBlobUrl(url);
 
         // Upload to backend
         const formData = new FormData();
-        formData.append("file", audioBlob, "mic_sample.wav");
+        formData.append("file", audioBlob, "mic_sample.webm");
         formData.append("consent_granted", "true");
         try {
           const res = await uploadVoiceReference(formData);
@@ -234,11 +238,11 @@ export const GenerationLabTab: React.FC = () => {
               }`}
             >
               <Upload className="h-6 w-6 mb-2 text-cyan-400" />
-              <span className="text-xs font-semibold text-slate-300">Cargar Archivo WAV</span>
-              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 hasta 25 MB</span>
+              <span className="text-xs font-semibold text-slate-300">Cargar Archivo de Audio</span>
+              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 / M4A / WebM</span>
               <input
                 type="file"
-                accept=".wav,.mp3"
+                accept="audio/*,.wav,.mp3,.ogg,.m4a,.webm"
                 onChange={handleFileUpload}
                 disabled={!consentGranted}
                 className="hidden"

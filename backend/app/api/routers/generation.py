@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from app.core.config import settings
 from app.models.schemas import VoiceGenerationRequest, VoiceGenerationResponse
 from app.services.voice_generation_service import voice_generation_service
+from app.services.audio_processing import normalize_audio_to_wav
 
 router = APIRouter(prefix="/generation", tags=["Laboratorio de Generación"])
 
@@ -16,6 +17,7 @@ async def upload_voice_reference(
     """
     Carga de muestra WAV de referencia para clonación.
     Exige consentimiento expreso para almacenamiento y procesamiento.
+    Normaliza de manera transparente cualquier formato (WebM de navegador, Ogg, MP3, WAV) a WAV PCM 16kHz mono con FFmpeg.
     """
     if not consent_granted:
         raise HTTPException(
@@ -23,14 +25,9 @@ async def upload_voice_reference(
             detail="Se requiere autorización expresa del titular para cargar muestras de voz en el laboratorio."
         )
 
-    if not file.filename.lower().endswith((".wav", ".mp3", ".ogg")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato no admitido. Utilice archivos WAV o MP3."
-        )
-
     ref_id = f"ref_{uuid.uuid4().hex[:10]}"
     dest_path = settings.UPLOADS_DIR / f"{ref_id}.wav"
+    raw_tmp_path = settings.UPLOADS_DIR / f"{ref_id}_raw"
 
     content = await file.read()
     if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
@@ -39,10 +36,21 @@ async def upload_voice_reference(
             detail="El archivo excede el tamaño máximo permitido (25 MB)."
         )
 
-    with open(dest_path, "wb") as f:
+    with open(raw_tmp_path, "wb") as f:
         f.write(content)
 
-    # Validar propiedades de audio
+    # Normalizar usando FFmpeg a WAV PCM 16-bit 16kHz mono
+    norm_ok = normalize_audio_to_wav(str(raw_tmp_path), str(dest_path))
+    if os.path.exists(raw_tmp_path):
+        os.remove(raw_tmp_path)
+
+    if not norm_ok or not os.path.exists(dest_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo decodificar el archivo de audio. Verifique que sea una grabación o archivo válido."
+        )
+
+    # Validar propiedades de audio ya normalizado
     try:
         info = sf.info(str(dest_path))
         duration = round(float(info.duration), 2)
@@ -53,7 +61,7 @@ async def upload_voice_reference(
             os.remove(dest_path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No se pudo decodificar el archivo de audio: {str(e)}"
+            detail=f"No se pudo leer las propiedades del audio: {str(e)}"
         )
 
     return {

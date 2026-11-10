@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from app.core.config import settings
 from app.models.schemas import AudioAnalysisResponse
 from app.services.audio_detection_service import audio_detection_service
+from app.services.audio_processing import normalize_audio_to_wav
 from app.core.database import save_audio_record
 
 router = APIRouter(prefix="/detection", tags=["Detección Acústica y Procedencia"])
@@ -13,19 +14,14 @@ router = APIRouter(prefix="/detection", tags=["Detección Acústica y Procedenci
 async def analyze_uploaded_audio(file: UploadFile = File(...)):
     """
     Analiza un archivo de audio cargado desde el micrófono o disco:
-    - Validación y normalización
+    - Validación y normalización con FFmpeg a 16kHz WAV mono
     - Detección AASIST (Deepfake audio score)
     - Detección de marca de agua PerTh
     - Extracción de forma de onda y espectrograma
     """
-    if not file.filename.lower().endswith((".wav", ".mp3", ".ogg", ".flac", ".m4a")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato de audio no compatible. Use WAV o MP3."
-        )
-
     audio_id = f"aud_{uuid.uuid4().hex[:10]}"
     dest_path = settings.UPLOADS_DIR / f"{audio_id}.wav"
+    raw_tmp_path = settings.UPLOADS_DIR / f"{audio_id}_raw"
 
     content = await file.read()
     if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
@@ -34,8 +30,19 @@ async def analyze_uploaded_audio(file: UploadFile = File(...)):
             detail="El archivo supera el límite de 25 MB."
         )
 
-    with open(dest_path, "wb") as f:
+    with open(raw_tmp_path, "wb") as f:
         f.write(content)
+
+    # Normalizar usando FFmpeg
+    norm_ok = normalize_audio_to_wav(str(raw_tmp_path), str(dest_path))
+    if os.path.exists(raw_tmp_path):
+        os.remove(raw_tmp_path)
+
+    if not norm_ok or not os.path.exists(dest_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Formato de audio no reconocido o dañado. Verifique el archivo cargado."
+        )
 
     try:
         # Guardar registro inicial

@@ -6,6 +6,26 @@ import librosa
 from typing import Dict, Any, List, Tuple
 from app.core.config import settings
 
+def normalize_audio_to_wav(input_path: str, output_path: str) -> bool:
+    """
+    Normaliza cualquier formato de audio de entrada (WebM de navegador, Opus, MP4/AAC,
+    OGG, MP3, WAV con diferentes bitrates/canales) a WAV PCM 16-bit, 16000 Hz, mono
+    utilizando FFmpeg de manera robusta.
+    """
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-ar", str(settings.TARGET_SAMPLE_RATE),
+        "-ac", "1",
+        "-c:a", "pcm_s16le",
+        output_path
+    ]
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        return True
+    except Exception as e:
+        print(f"Error normalizando audio con FFmpeg desde {input_path}: {e}")
+        return False
+
 def extract_waveform_peaks(audio_path: str, num_peaks: int = 150) -> List[float]:
     """
     Extrae envolvente de picos normalizada [0, 1] para renderizar formas de onda en el frontend.

@@ -66,7 +66,10 @@ class VoiceGenerationService:
             watermark_embedded=result["watermark_embedded"],
             academic_banner=result["academic_banner"],
             generation_time_ms=result["generation_time_ms"],
-            message="Audio sintético generado y marcado exitosamente bajo autorización explícita."
+            message="Audio sintético generado y marcado exitosamente bajo autorización explícita.",
+            ref_pitch_hz=result.get("ref_pitch_hz"),
+            cloned_pitch_hz=result.get("cloned_pitch_hz"),
+            pitch_correction_semitones=result.get("pitch_correction_semitones")
         )
 
 voice_generation_service = VoiceGenerationService()

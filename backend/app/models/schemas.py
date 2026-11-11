@@ -34,6 +34,9 @@ class VoiceGenerationResponse(BaseModel):
     academic_banner: str
     generation_time_ms: float
     message: str
+    ref_pitch_hz: Optional[float] = None
+    cloned_pitch_hz: Optional[float] = None
+    pitch_correction_semitones: Optional[float] = None
 
 # ==================== Vishing Scenarios ====================
 class VishingScenario(BaseModel):

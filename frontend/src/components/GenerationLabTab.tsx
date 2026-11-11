@@ -351,19 +351,39 @@ export const GenerationLabTab: React.FC = () => {
 
               {/* Perceptual & Forensic Evaluation Metrics */}
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-2 text-xs">
-                <span className="font-semibold text-slate-300">Perfil Biométrico de la Clonación:</span>
+                <span className="font-semibold text-slate-300">Calibración Biométrica y Tono Frecuencial:</span>
                 <div className="grid grid-cols-2 gap-3 text-slate-400 text-[11px] pt-1">
                   <div>
-                    <span className="text-slate-500">Pitch Real Extraído:</span> <strong className="text-white">{generationResult.creator_model.includes("Hz") ? generationResult.creator_model.split("—")[2] || "Adaptado" : "135 Hz"}</strong>
+                    <span className="text-slate-500">F0 Referencia (Titular):</span>{" "}
+                    <strong className="text-white">
+                      {generationResult.ref_pitch_hz ? `${generationResult.ref_pitch_hz} Hz` : "Perfilado"}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Morfología Vocal:</span> <strong className="text-cyan-400">Vocoder WORLD (Formantes + Tracto Vocal)</strong>
+                    <span className="text-slate-500">F0 Clon Sintetizado:</span>{" "}
+                    <strong className="text-emerald-400">
+                      {generationResult.cloned_pitch_hz ? `${generationResult.cloned_pitch_hz} Hz (Exacto)` : "Calibrado"}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Marca de Agua:</span> <strong className="text-emerald-400">PerthNet Neuronal (Inaudible)</strong>
+                    <span className="text-slate-500">Alineación Tonal (Pitch Lock):</span>{" "}
+                    <strong className="text-cyan-400">
+                      {generationResult.pitch_correction_semitones !== undefined
+                        ? `${generationResult.pitch_correction_semitones > 0 ? "+" : ""}${generationResult.pitch_correction_semitones} st (Bloqueado)`
+                        : "Calibración Biológica"}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Duración:</span> <strong className="text-white">{generationResult.duration_seconds}s</strong>
+                    <span className="text-slate-500">Resonancia & Formantes:</span>{" "}
+                    <strong className="text-cyan-400">LTAS / Tracto Vocal Titular</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Marca de Agua:</span>{" "}
+                    <strong className="text-emerald-400">PerthNet Neuronal (Inaudible)</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Duración:</span>{" "}
+                    <strong className="text-white">{generationResult.duration_seconds}s</strong>
                   </div>
                 </div>
               </div>

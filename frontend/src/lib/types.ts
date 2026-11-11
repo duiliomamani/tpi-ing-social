@@ -30,6 +30,9 @@ export interface VoiceGenerationResponse {
   academic_banner: string;
   generation_time_ms: number;
   message: string;
+  ref_pitch_hz?: number;
+  cloned_pitch_hz?: number;
+  pitch_correction_semitones?: number;
 }
 
 export interface VishingScenario {

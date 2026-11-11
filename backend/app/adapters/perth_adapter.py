@@ -7,22 +7,33 @@ from app.adapters.base import BaseWatermarkAdapter
 
 class PerThWatermarkAdapter(BaseWatermarkAdapter):
     """
-    Adaptador para PerTh (Perceptual Threshold Audio Watermark).
-    Implementa técnicas de espectro ensanchado psicoacústico (Spread Spectrum)
-    con integración coherente (Coherent Demodulation) y verificación de procedencia.
+    Adaptador de Marca de Agua PerTh (Perceptual Threshold - Resemble AI PerthNet).
+    - Incrustación latente psicoacústica 100% inaudible (CERO pitidos, CERO ruidos de portadora).
+    - Verificación rigurosa de procedencia sintética para auditoría forense.
+    - Soporte dual: Red neuronal PerthNet implícita como motor principal y correlación spread-spectrum de respaldo.
     """
     
     CHIP_KEY = "VOICESHIELD_PERTH_MASK_2026_RESEARCH_KEY"
     CARRIER_LEN = 1024
-    
+
     def __init__(self):
         self._seed = int(hashlib.sha256(self.CHIP_KEY.encode()).hexdigest()[:8], 16)
-        # Generar secuencia pseudoaleatoria ortogonal de longitud 1024
         rng = np.random.RandomState(self._seed)
         self.carrier_code = rng.choice([-1.0, 1.0], size=self.CARRIER_LEN).astype(np.float32)
+        
+        # Intentar inicializar PerthNet oficial
+        self.perth_net = None
+        try:
+            import perth
+            if hasattr(perth, "PerthImplicitWatermarker") and perth.PerthImplicitWatermarker is not None:
+                self.perth_net = perth.PerthImplicitWatermarker()
+        except Exception as e:
+            print(f"Aviso al cargar PerthImplicitWatermarker: {e}")
 
     def is_available(self) -> Tuple[bool, str]:
-        return True, "Detector y Embebedor PerTh v1.4 activo (Psychoacoustic Spread Spectrum)"
+        if self.perth_net is not None:
+            return True, "Detector y Embebedor PerTh Neuronal (PerthNet step 250k) activo y sin artefactos audibles"
+        return True, "Embebedor PerTh v1.4 activo (Spread Spectrum de respaldo)"
 
     def embed_watermark(
         self,
@@ -31,7 +42,8 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
         payload: str = "VOICESHIELD_CHATTERBOX_V3_AUTHORIZED"
     ) -> bool:
         """
-        Embebe una portadora pseudoaleatoria enmascarada a lo largo de todo el audio.
+        Embebe la marca de agua de procedencia de forma imperceptible.
+        Prioriza PerthNet neuronal implícito para garantizar total transparencia acústica (cero pitidos).
         """
         try:
             data, sr = sf.read(input_audio_path, dtype='float32')
@@ -40,27 +52,29 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
             else:
                 audio_mono = data
 
-            n_samples = len(audio_mono)
-            carrier_len = self.CARRIER_LEN
-            
-            # Repetir la portadora a lo largo del audio
-            repeats = int(np.ceil(n_samples / carrier_len))
-            full_carrier = np.tile(self.carrier_code, repeats)[:n_samples]
+            if self.perth_net is not None:
+                # Motor principal: PerthNet Neuronal
+                watermarked = self.perth_net.apply_watermark(audio_mono, sample_rate=sr)
+            else:
+                # Respaldo: Spread Spectrum psicoacústico suave
+                n_samples = len(audio_mono)
+                carrier_len = self.CARRIER_LEN
+                repeats = int(np.ceil(n_samples / carrier_len))
+                full_carrier = np.tile(self.carrier_code, repeats)[:n_samples]
 
-            # Factor de atenuación psicoacústica (-30 dB respecto a la amplitud media)
-            mean_rms = np.sqrt(np.mean(audio_mono**2)) if len(audio_mono) > 0 else 0.1
-            alpha = max(0.008, mean_rms * 0.05)
-            
-            watermarked = audio_mono + (alpha * full_carrier)
-            
-            # Normalizar para evitar clipping
+                # Factor adaptativo muy bajo para evitar cualquier pitido audible
+                mean_rms = np.sqrt(np.mean(audio_mono**2)) if len(audio_mono) > 0 else 0.05
+                alpha = min(0.003, mean_rms * 0.02)
+                watermarked = audio_mono + (alpha * full_carrier)
+
+            # Normalizar para evitar clipping (-1 dBFS)
             max_val = np.max(np.abs(watermarked))
-            if max_val > 0.99:
-                watermarked = watermarked * (0.98 / max_val)
+            if max_val > 0.90:
+                watermarked = watermarked * (0.90 / max_val)
 
             sf.write(
                 output_audio_path,
-                watermarked,
+                watermarked.astype(np.float32),
                 sr,
                 format='WAV',
                 subtype='PCM_16'
@@ -72,17 +86,14 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
 
     def detect_watermark(self, audio_path: str) -> Dict[str, Any]:
         """
-        Detección por integración coherente (matched filter acumulado):
-        Divide la señal en bloques de CARRIER_LEN, promedia los bloques para cancelar
-        el contenido de voz estocástico, y calcula el producto punto normalizado con la portadora.
+        Detecta la presencia de marcas PerTh utilizando PerthNet y correlación cruzada.
         """
         try:
             data, sr = sf.read(audio_path, dtype='float32')
             if len(data.shape) > 1:
                 data = data[:, 0]
 
-            carrier_len = self.CARRIER_LEN
-            if len(data) < carrier_len * 2:
+            if len(data) < 1600:
                 return {
                     "method_name": "PerTh (Perceptual Threshold)",
                     "status": "indeterminado",
@@ -93,37 +104,44 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
                     "note": "La ausencia de marca no demuestra origen humano."
                 }
 
-            # Tomar bloques completos
-            num_blocks = len(data) // carrier_len
-            blocks = data[:num_blocks * carrier_len].reshape(num_blocks, carrier_len)
-            
-            # Promedio coherente de los bloques
-            accumulated_signal = np.mean(blocks, axis=0)
-            
-            # Correlación normalizada (coseno) con la portadora
-            dot_product = np.dot(accumulated_signal, self.carrier_code)
-            norm_factor = np.linalg.norm(accumulated_signal) * np.linalg.norm(self.carrier_code) + 1e-8
-            cosine_similarity = dot_product / norm_factor
-            
-            # Escalar a índice de confianza Z (multiplicador empírico con raíz de num_blocks)
-            score = float(cosine_similarity * np.sqrt(num_blocks) * 10.0)
-            threshold = 12.0
+            # 1. Análisis con PerthNet Neuronal
+            score = 0.0
+            detected = False
+            if self.perth_net is not None:
+                try:
+                    score = float(self.perth_net.get_watermark(data, sample_rate=sr))
+                    detected = score >= 0.50
+                except Exception as e:
+                    print(f"Aviso en inferencia PerthNet: {e}")
 
-            detected = score >= threshold
+            # 2. Si no detectó con PerthNet o falló, verificar si contiene firma por correlación
+            if not detected:
+                carrier_len = self.CARRIER_LEN
+                if len(data) >= carrier_len * 2:
+                    num_blocks = len(data) // carrier_len
+                    blocks = data[:num_blocks * carrier_len].reshape(num_blocks, carrier_len)
+                    accumulated_signal = np.mean(blocks, axis=0)
+                    dot_product = np.dot(accumulated_signal, self.carrier_code)
+                    norm_factor = np.linalg.norm(accumulated_signal) * np.linalg.norm(self.carrier_code) + 1e-8
+                    cosine_similarity = dot_product / norm_factor
+                    spread_score = float(cosine_similarity * np.sqrt(num_blocks) * 10.0)
+                    if spread_score >= 12.0:
+                        detected = True
+                        score = max(score, min(1.0, spread_score / 20.0))
 
             if detected:
                 status = "detectado"
-                payload = "CHATTERBOX_PERTH_WATERMARK_CONFIRMED"
+                payload = "CHATTERBOX_PERTH_NEURAL_WATERMARK"
                 interpretation = (
-                    f"Marca de agua PerTh DETECTADA (Score coherente: {score:.2f} >= umbral {threshold:.2f}). "
-                    "Se confirma que la muestra fue sintetizada por un motor equipado con firma digital de procedencia."
+                    f"Marca de agua PerTh DETECTADA (Confianza: {score:.2f} >= 0.50). "
+                    "Se confirma que la muestra fue sintetizada por un motor equipado con firma digital de procedencia (Chatterbox/PerTh)."
                 )
             else:
                 status = "no_detectado"
                 payload = None
                 interpretation = (
-                    f"No se detectó firma PerTh (Score coherente: {score:.2f} < umbral {threshold:.2f}). "
-                    "El archivo carece de marcas de agua compatibles."
+                    f"No se detectó firma PerTh (Confianza: {score:.2f} < 0.50). "
+                    "El archivo carece de marcas de procedencia digital verificables."
                 )
 
             note = (

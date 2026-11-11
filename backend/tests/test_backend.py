@@ -140,3 +140,25 @@ def test_comparative_experiment_pipeline():
     assert res.confusion_matrix.true_positives + res.confusion_matrix.false_negatives == 4
     assert res.confusion_matrix.true_negatives + res.confusion_matrix.false_positives == 4
     assert len(res.eer_curve_points) > 0
+
+def test_chatterbox_voice_cloning():
+    from app.adapters.chatterbox_adapter import ChatterboxAdapter
+    adapter = ChatterboxAdapter()
+    available, msg = adapter.is_available()
+    assert available is True
+
+    # Test synthesizing with reference human audio
+    human_sample = str(settings.AUDIO_SAMPLES_DIR / "scenario_c.wav")
+    out_test = "/tmp/test_pytest_clone.wav"
+    res = adapter.synthesize(
+        text="Prueba de clonación de voz para verificación de laboratorio.",
+        reference_audio_path=human_sample,
+        output_path=out_test,
+        consent_granted=True,
+        apply_watermark=True
+    )
+    assert res["is_synthetic"] is True
+    assert res["watermark_embedded"] is True
+    assert res["duration_seconds"] > 1.0
+    assert os.path.exists(out_test)
+

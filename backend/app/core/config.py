@@ -27,8 +27,8 @@ class Settings(BaseModel):
     
     # Audio constants
     TARGET_SAMPLE_RATE: int = 16000
-    MAX_UPLOAD_SIZE_BYTES: int = 25 * 1024 * 1024  # 25 MB
-    MAX_AUDIO_DURATION_SECONDS: float = 120.0  # 2 minutes for lab demos
+    MAX_UPLOAD_SIZE_BYTES: int = 100 * 1024 * 1024  # 100 MB
+    MAX_AUDIO_DURATION_SECONDS: float = 300.0  # 5 minutes for lab demos
     
     # Academic Label
     SYNTHETIC_AUDIO_BANNER: str = "AUDIO SINTÉTICO — DEMOSTRACIÓN ACADÉMICA"

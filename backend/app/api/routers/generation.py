@@ -33,7 +33,7 @@ async def upload_voice_reference(
     if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="El archivo excede el tamaño máximo permitido (25 MB)."
+            detail="El archivo excede el tamaño máximo permitido (100 MB)."
         )
 
     with open(raw_tmp_path, "wb") as f:

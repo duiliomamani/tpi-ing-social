@@ -27,7 +27,7 @@ async def analyze_uploaded_audio(file: UploadFile = File(...)):
     if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="El archivo supera el límite de 25 MB."
+            detail="El archivo supera el límite de 100 MB."
         )
 
     with open(raw_tmp_path, "wb") as f:

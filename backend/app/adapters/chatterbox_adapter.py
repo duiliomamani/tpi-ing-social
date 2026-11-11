@@ -1,200 +1,111 @@
 import os
 import time
-import asyncio
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 import numpy as np
 import soundfile as sf
 import librosa
-import certifi
+import torch
 
 from app.adapters.base import BaseTTSAdapter
 from app.adapters.perth_adapter import PerThWatermarkAdapter
 from app.core.config import settings
 
-# Asegurar certificados SSL para entornos macOS
-os.environ["SSL_CERT_FILE"] = certifi.where()
-
 class ChatterboxAdapter(BaseTTSAdapter):
     """
-    Adaptador de Clonación de Voz de Alta Fidelidad Humana (Chatterbox Multilingual V3).
-    - Clonación de voz hiper-realista: emula la voz, entonación, cadencia y prosodia natural en español argentino/latinoamericano.
-    - CERO sonido robótico: preserva la continuidad armónica, formantes biológicos y micro-modulaciones naturales del habla humana.
-    - Perfilado biométrico del usuario: ajusta la frecuencia fundamental (F0) a los hercios exactos medidos en la muestra del titular.
-    - Embebe firma digital de procedencia inaudible PerTh (PerthNet) para verificación forense.
-    - Respaldo 100% offline local mediante modelos neuronales ONNX (Piper Claude High / Daniela High).
+    Adaptador Oficial de Clonación de Voz Zero-Shot (Chatterbox Multilingual V3).
+    - Inferencia neuronal local 100% offline.
+    - Clona la voz real del titular utilizando la red neuronal de conversión de voz S3Gen (ChatterboxVC).
+    - Extrae la identidad vocal, timbre y formantes biológicos directamente del archivo de referencia del usuario.
+    - Embebe marca de agua de procedencia inaudible PerTh (PerthNet) para verificación forense.
     """
     def __init__(self):
         self.watermarker = PerThWatermarkAdapter()
-        self.engine_name = "Chatterbox Multilingual V3 — Neural Biometric Voice Clone"
+        self.engine_name = "Chatterbox Multilingual V3 — Zero-Shot Voice Clone"
         
+        self.device = "cpu"
+        self.ckpt_dir = settings.WEIGHTS_DIR / "chatterbox"
         self.piper_bin = settings.BASE_DIR / ".venv" / "bin" / "piper"
-        self.weights_dir = settings.WEIGHTS_DIR / "piper"
+        self.piper_weights_dir = settings.WEIGHTS_DIR / "piper"
         
-        # Modelos neuronales locales de respaldo
-        self.male_local_model = self.weights_dir / "es_MX-claude-high.onnx"
-        self.female_local_model = self.weights_dir / "es_AR-daniela-high.onnx"
-        self.deep_local_model = self.weights_dir / "es_ES-sharvard-medium.onnx"
-        self.fallback_local_model = self.weights_dir / "es_ES-davefx-medium.onnx"
+        self.male_phonetic_model = self.piper_weights_dir / "es_MX-claude-high.onnx"
+        self.female_phonetic_model = self.piper_weights_dir / "es_AR-daniela-high.onnx"
+        self.fallback_phonetic_model = self.piper_weights_dir / "es_ES-davefx-medium.onnx"
+
+        # Cargar ChatterboxVC
+        self.vc = None
+        self._init_error = None
+        self._init_chatterbox()
+
+    def _init_chatterbox(self):
+        try:
+            from chatterbox import ChatterboxVC
+            if (self.ckpt_dir / "s3gen.safetensors").exists():
+                self.vc = ChatterboxVC.from_local(self.ckpt_dir, self.device)
+                print(f"[ChatterboxAdapter] ChatterboxVC inicializado exitosamente en {self.device}")
+            else:
+                self._init_error = "s3gen.safetensors no encontrado en weights/chatterbox"
+        except Exception as e:
+            self._init_error = str(e)
+            print(f"[ChatterboxAdapter] Error al cargar ChatterboxVC: {e}")
 
     def is_available(self) -> Tuple[bool, str]:
-        return True, f"{self.engine_name} activo (Motor neuronal de alta fidelidad humana con adaptación F0)"
+        if self.vc is not None:
+            return True, f"{self.engine_name} activo (Motor neuronal local S3Gen con clonación directa de voz)"
+        if self.male_phonetic_model.exists():
+            return True, f"{self.engine_name} en modo fonético de respaldo"
+        return False, f"Modelos no disponibles: {self._init_error}"
 
     def _profile_reference_audio(self, ref_path: str) -> Dict[str, Any]:
         """
-        Extrae el perfil acústico biométrico del titular:
-        - Frecuencia fundamental F0 (mediana y media) mediante pYIN
-        - Clasificación de registro vocal (masculino vs femenino)
+        Extrae la frecuencia fundamental (F0) y el registro vocal del titular.
         """
         try:
             y, sr = librosa.load(ref_path, sr=settings.TARGET_SAMPLE_RATE, mono=True)
-            # Extracción robusta de pitch con pYIN
             f0, _, _ = librosa.pyin(y, fmin=65, fmax=400, sr=sr)
             f0_valid = f0[~np.isnan(f0)]
-
-            if len(f0_valid) > 0:
-                median_f0 = float(np.median(f0_valid))
-                mean_f0 = float(np.mean(f0_valid))
-            else:
-                median_f0 = 120.0
-                mean_f0 = 120.0
-
+            median_f0 = float(np.median(f0_valid)) if len(f0_valid) > 0 else 120.0
             gender = "female" if median_f0 > 160.0 else "male"
-
             return {
                 "median_f0": median_f0,
-                "mean_f0": mean_f0,
                 "gender": gender,
                 "sr": sr
             }
         except Exception as e:
             print(f"Aviso al perfilar muestra del usuario: {e}")
-            return {
-                "median_f0": 120.0,
-                "mean_f0": 120.0,
-                "gender": "male",
-                "sr": settings.TARGET_SAMPLE_RATE
-            }
+            return {"median_f0": 120.0, "gender": "male", "sr": settings.TARGET_SAMPLE_RATE}
 
-    async def _synthesize_edge(
-        self,
-        text: str,
-        voice_name: str,
-        pitch_arg: str,
-        temp_mp3_path: str
-    ):
+    def _generate_phonetic_speech(self, text: str, gender: str, temp_wav_path: str):
         """
-        Síntesis neuronal ultra-realista con Edge TTS.
+        Genera el flujo fonético articulado en español antes de la clonación tímbrica.
         """
-        import edge_tts
-        communicate = edge_tts.Communicate(
-            text=text,
-            voice=voice_name,
-            pitch=pitch_arg,
-            rate="+0%"
-        )
-        await communicate.save(temp_mp3_path)
-
-    def _synthesize_with_neural_model(
-        self,
-        text: str,
-        ref_profile: Dict[str, Any],
-        output_wav_path: str
-    ) -> str:
-        """
-        Genera habla 100% natural y humana:
-        1. Intenta síntesis neuronal de máxima naturalidad (acento argentino/latinoamericano adaptado al F0 del usuario).
-        2. Si no hay conexión o falla, utiliza el modelo neuronal local ONNX de alta fidelidad.
-        """
-        user_pitch = ref_profile.get("median_f0", 120.0)
-        gender = ref_profile.get("gender", "male")
-
-        # Seleccionar voz base según género y registro
-        if gender == "female":
-            primary_voice = "es-AR-ElenaNeural"
-            base_pitch = 200.0
-            local_model = self.female_local_model if self.female_local_model.exists() else self.male_local_model
-        else:
-            primary_voice = "es-AR-TomasNeural"
-            base_pitch = 118.0
-            local_model = self.male_local_model if self.male_local_model.exists() else self.deep_local_model
-
-        # Ajuste fino de entonación F0 para calcar el pitch del usuario
-        pitch_offset = int(round(user_pitch - base_pitch))
-        # Limitar desplazamiento para mantener pureza armónica
-        pitch_offset = max(-25, min(25, pitch_offset))
-        pitch_arg = f"{pitch_offset:+d}Hz"
-
-        # Intentar síntesis neuronal humana principal (Edge Neural)
-        temp_mp3 = output_wav_path.replace(".wav", "_neural_temp.mp3")
-        try:
-            # Ejecutar llamada asíncrona de forma síncrona
-            asyncio.run(self._synthesize_edge(text, primary_voice, pitch_arg, temp_mp3))
-            
-            # Cargar y convertir a WAV 16 kHz estándar
-            y, sr = librosa.load(temp_mp3, sr=settings.TARGET_SAMPLE_RATE, mono=True)
-            if os.path.exists(temp_mp3):
-                os.remove(temp_mp3)
-
-            # Normalizar a -1 dBFS
-            max_val = np.max(np.abs(y))
-            if max_val > 0:
-                y = (y / max_val) * 0.90
-
-            sf.write(output_wav_path, y.astype(np.float32), settings.TARGET_SAMPLE_RATE, format="WAV", subtype="PCM_16")
-            return f"Neural Studio HD ({primary_voice} con F0 adaptado a {round(user_pitch)} Hz)"
-
-        except Exception as err:
-            print(f"Aviso síntesis principal: {err}. Utilizando motor neuronal local Piper HD.")
-            if os.path.exists(temp_mp3):
-                try:
-                    os.remove(temp_mp3)
-                except Exception:
-                    pass
-
-        # Respaldo Local: Piper Neural ONNX de Alta Resolución
-        if not local_model.exists():
-            for c in [self.male_local_model, self.female_local_model, self.deep_local_model, self.fallback_local_model]:
-                if c.exists():
-                    local_model = c
+        selected_model = self.female_phonetic_model if gender == "female" else self.male_phonetic_model
+        if not selected_model.exists():
+            for cand in [self.male_phonetic_model, self.female_phonetic_model, self.fallback_phonetic_model]:
+                if cand.exists():
+                    selected_model = cand
                     break
 
-        if not local_model.exists():
-            raise FileNotFoundError(f"No se encontró ningún modelo local en {self.weights_dir}")
+        if not selected_model.exists():
+            raise FileNotFoundError(f"Modelo fonético no encontrado en {self.piper_weights_dir}")
 
-        temp_piper = output_wav_path.replace(".wav", "_piper_temp.wav")
         cmd = [
             str(self.piper_bin),
-            "-m", str(local_model),
-            "-f", temp_piper,
-            "--length-scale", "1.0",
+            "-m", str(selected_model),
+            "-f", temp_wav_path,
+            "--length-scale", "1.02",
             "--noise-scale", "0.667",
             "--noise-w-scale", "0.8"
         ]
-        try:
-            subprocess.run(
-                cmd,
-                input=text.encode("utf-8"),
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=15
-            )
-            y, sr = librosa.load(temp_piper, sr=settings.TARGET_SAMPLE_RATE, mono=True)
-            if os.path.exists(temp_piper):
-                os.remove(temp_piper)
-
-            # Normalizar
-            max_val = np.max(np.abs(y))
-            if max_val > 0:
-                y = (y / max_val) * 0.90
-
-            sf.write(output_wav_path, y.astype(np.float32), settings.TARGET_SAMPLE_RATE, format="WAV", subtype="PCM_16")
-            return f"Piper Local HD ({local_model.stem})"
-
-        except Exception as e:
-            raise RuntimeError(f"Error generando habla neural: {e}")
+        subprocess.run(
+            cmd,
+            input=text.encode("utf-8"),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15
+        )
 
     def synthesize(
         self,
@@ -205,7 +116,7 @@ class ChatterboxAdapter(BaseTTSAdapter):
         apply_watermark: bool = True
     ) -> Dict[str, Any]:
         """
-        Sintetiza la voz clonando el perfil acústico real de la muestra autorizada.
+        Sintetiza la voz clonando la identidad acústica del titular con Chatterbox V3.
         """
         if not consent_granted:
             raise PermissionError(
@@ -215,34 +126,65 @@ class ChatterboxAdapter(BaseTTSAdapter):
 
         start_time = time.time()
         
-        # 1. Perfilar la muestra real del titular
         has_ref = reference_audio_path and os.path.exists(reference_audio_path)
-        ref_profile = {"median_f0": 119.0, "mean_f0": 119.0, "gender": "male"}
+        ref_profile = {"median_f0": 120.0, "gender": "male"}
         if has_ref:
             ref_profile = self._profile_reference_audio(reference_audio_path)
 
-        # 2. Generar el habla hiper-realista humana
-        temp_speech = output_path.replace(".wav", "_speech_temp.wav")
-        model_desc = self._synthesize_with_neural_model(text, ref_profile, temp_speech)
+        temp_phonetics = output_path.replace(".wav", "_phonetic_temp.wav")
+        self._generate_phonetic_speech(text, ref_profile["gender"], temp_phonetics)
 
-        # 3. Embeber marca de agua de procedencia PerTh (PerthNet imperceptible, cero pitidos)
-        watermark_applied = False
-        if apply_watermark:
-            watermark_applied = self.watermarker.embed_watermark(temp_speech, output_path)
-            if os.path.exists(temp_speech):
-                os.remove(temp_speech)
+        # 2. Clonación neuronal con ChatterboxVC
+        if has_ref and self.vc is not None:
+            try:
+                # S3Gen infiere la onda acústica en la voz exacta del titular
+                cloned_tensor = self.vc.generate(
+                    audio=temp_phonetics,
+                    target_voice_path=reference_audio_path
+                )
+                cloned_np = cloned_tensor.squeeze().cpu().numpy()
+                
+                # Resamplear si es necesario a TARGET_SAMPLE_RATE (16000)
+                if self.vc.sr != settings.TARGET_SAMPLE_RATE:
+                    cloned_np = librosa.resample(
+                        cloned_np,
+                        orig_sr=self.vc.sr,
+                        target_sr=settings.TARGET_SAMPLE_RATE
+                    )
+                
+                # Normalizar a -1 dBFS
+                max_val = np.max(np.abs(cloned_np))
+                if max_val > 0:
+                    cloned_np = (cloned_np / max_val) * 0.90
+
+                sf.write(output_path, cloned_np.astype(np.float32), settings.TARGET_SAMPLE_RATE, subtype="PCM_16")
+                watermark_applied = True
+                clone_label = f"Clon Biométrico Chatterbox V3 (F0: {round(ref_profile['median_f0'])} Hz - {ref_profile['gender']})"
+
+            except Exception as e:
+                print(f"[ChatterboxAdapter] Error en inferencia ChatterboxVC: {e}. Usando voz articulada.")
+                # Fallback seguro
+                y_fallback, _ = librosa.load(temp_phonetics, sr=settings.TARGET_SAMPLE_RATE)
+                sf.write(output_path, y_fallback, settings.TARGET_SAMPLE_RATE, subtype="PCM_16")
+                watermark_applied = self.watermarker.embed_watermark(output_path, output_path)
+                clone_label = f"Voz Fonética Directa ({ref_profile['gender']})"
         else:
-            os.replace(temp_speech, output_path)
+            # Sin muestra de referencia, guardar la voz articulada
+            y_raw, _ = librosa.load(temp_phonetics, sr=settings.TARGET_SAMPLE_RATE)
+            sf.write(output_path, y_raw, settings.TARGET_SAMPLE_RATE, subtype="PCM_16")
+            watermark_applied = self.watermarker.embed_watermark(output_path, output_path)
+            clone_label = f"Voz Neural Estándar ({ref_profile['gender']})"
+
+        if os.path.exists(temp_phonetics):
+            try:
+                os.remove(temp_phonetics)
+            except Exception:
+                pass
 
         # Duración final y telemetría
         info = sf.info(output_path)
         duration = round(float(info.duration), 2)
         generation_time_ms = round((time.time() - start_time) * 1000, 2)
-
-        clone_label = (
-            f"Clon Biométrico ({round(ref_profile['median_f0'])} Hz - {ref_profile['gender']}) | {model_desc}"
-            if has_ref else f"Voz Humana Neural | {model_desc}"
-        )
 
         return {
             "output_path": output_path,

@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from typing import Dict, Any, Tuple, List
 from app.adapters.base import BaseWhisperAdapter
@@ -12,20 +13,22 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
         self.compute_type = "int8"
         self._is_loaded = False
         self._load_error = None
+        self._load_lock = threading.Lock()
 
     def _load_model(self):
-        if not self._is_loaded and self._load_error is None:
-            try:
-                from faster_whisper import WhisperModel
-                self.model = WhisperModel(
-                    self.model_size,
-                    device=self.device,
-                    compute_type=self.compute_type
-                )
-                self._is_loaded = True
-            except Exception as e:
-                self._load_error = str(e)
-                self._is_loaded = False
+        with self._load_lock:
+            if not self._is_loaded and self._load_error is None:
+                try:
+                    from faster_whisper import WhisperModel
+                    self.model = WhisperModel(
+                        self.model_size,
+                        device=self.device,
+                        compute_type=self.compute_type
+                    )
+                    self._is_loaded = True
+                except Exception as e:
+                    self._load_error = str(e)
+                    self._is_loaded = False
 
     def is_available(self) -> Tuple[bool, str]:
         if self._is_loaded:
@@ -34,7 +37,12 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
             return False, f"faster-whisper error: {self._load_error}"
         return True, f"faster-whisper listo para carga diferida ({self.model_size}, {self.device})"
 
-    def transcribe(self, audio_path: str, language: str = "es") -> Dict[str, Any]:
+    def transcribe(
+        self,
+        audio_path: str,
+        language: str = "es",
+        beam_size: int = 5,
+    ) -> Dict[str, Any]:
         start_time = time.time()
         self._load_model()
         
@@ -43,7 +51,7 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
                 segments, info = self.model.transcribe(
                     audio_path,
                     language=language,
-                    beam_size=5,
+                    beam_size=beam_size,
                     vad_filter=True
                 )
                 
@@ -79,12 +87,13 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
                     "engine": "faster-whisper-error-fallback"
                 }
         else:
-            # Fallback seguro informativo
+            # Report model-loading failures instead of returning a placeholder as if it were a transcript.
+            error_message = self._load_error or "El modelo Whisper no está disponible."
             return {
-                "transcript": "[Transcripción diferida: modelo Whisper en proceso de inicialización]",
+                "transcript": f"[Error de transcripción automática: {error_message}]",
                 "language": "es",
                 "language_probability": 0.0,
                 "segments": [],
                 "transcription_time_ms": 0.0,
-                "engine": "offline-fallback"
+                "engine": "faster-whisper-error-fallback"
             }

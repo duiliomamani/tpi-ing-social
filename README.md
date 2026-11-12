@@ -109,7 +109,7 @@ backend/.venv/bin/python scripts/download_f5_spanish.py
 
 El checkpoint pesa aproximadamente 1.35 GB y queda en `backend/weights/f5-spanish`. El backend también descarga el vocoder oficial Vocos la primera vez que carga F5-TTS. En la interfaz se requiere una muestra clara de 5–12 segundos y el texto exacto que se oye en ella. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis del artículo comparativo, KikiVoice, F5-TTS y las limitaciones de calidad y licencia.
 
-En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`. La demo usa 16 pasos por defecto y acepta solo referencias de hasta 12 s con transcripción alineada; cada proceso permite una generación simultánea para proteger la memoria local.
+En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`. La demo usa 16 pasos por defecto, acepta referencias de hasta 12 s con transcripción alineada y limita la duración proyectada de cada inferencia a 30 s; cada proceso permite una generación simultánea para proteger la memoria local. La interfaz puede crear un borrador editable con faster-whisper local.
 
 ---
 

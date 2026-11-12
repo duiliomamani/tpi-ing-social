@@ -39,6 +39,22 @@ class VoiceGenerationRequest(BaseModel):
             raise ValueError("La transcripción literal de la referencia es obligatoria.")
         return value
 
+class VoiceReferenceTranscriptionRequest(BaseModel):
+    reference_audio_id: str = Field(
+        ...,
+        pattern=r"^ref_[0-9a-f]{10}$",
+        description="ID del audio de referencia cargado",
+    )
+    consent_granted: bool = Field(..., description="Consentimiento para procesar la muestra de voz")
+
+class VoiceReferenceTranscriptionResponse(BaseModel):
+    reference_audio_id: str
+    transcript: str
+    language: str
+    language_probability: float
+    transcription_time_ms: float
+    engine: str
+
 class VoiceGenerationResponse(BaseModel):
     audio_id: str
     filename: str

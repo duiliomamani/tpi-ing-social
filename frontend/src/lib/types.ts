@@ -35,6 +35,15 @@ export interface VoiceGenerationResponse {
   pitch_correction_semitones?: number;
 }
 
+export interface VoiceReferenceTranscriptionResponse {
+  reference_audio_id: string;
+  transcript: string;
+  language: string;
+  language_probability: number;
+  transcription_time_ms: number;
+  engine: string;
+}
+
 export interface VishingScenario {
   id: string;
   code: "scenario_a" | "scenario_b" | "scenario_c" | "scenario_d";

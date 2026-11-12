@@ -3,10 +3,16 @@ import uuid
 import soundfile as sf
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from app.core.config import settings
-from app.models.schemas import VoiceGenerationRequest, VoiceGenerationResponse
+from app.models.schemas import (
+    VoiceGenerationRequest,
+    VoiceGenerationResponse,
+    VoiceReferenceTranscriptionRequest,
+    VoiceReferenceTranscriptionResponse,
+)
 from app.adapters.f5_tts_adapter import GenerationInProgressError
 from app.services.voice_generation_service import voice_generation_service
 from app.services.audio_processing import normalize_audio_to_wav
+from app.services.transcription_service import transcription_service
 
 router = APIRouter(prefix="/generation", tags=["Laboratorio de Generación"])
 
@@ -94,6 +100,73 @@ async def upload_voice_reference(
         "status": "Referencia de voz cargada y perfilada exitosamente.",
         "consent_verified": True
     }
+
+
+@router.post("/transcribe-reference", response_model=VoiceReferenceTranscriptionResponse)
+def transcribe_voice_reference(request: VoiceReferenceTranscriptionRequest):
+    """Draft an editable Spanish transcript locally with the shared Whisper model."""
+    if not request.consent_granted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere consentimiento expreso para transcribir la muestra de voz.",
+        )
+
+    reference_path = settings.UPLOADS_DIR / f"{request.reference_audio_id}.wav"
+    if not reference_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró la muestra de referencia cargada.",
+        )
+
+    try:
+        duration = float(sf.info(str(reference_path)).duration)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"No se pudieron leer los metadatos de la referencia: {exc}",
+        )
+
+    if duration > settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"La referencia dura {duration:.1f} s. Recorte un fragmento de hasta "
+                f"{settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:.0f} s antes de transcribirlo."
+            ),
+        )
+    if duration < 1.0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La referencia debe contener al menos un segundo de voz clara.",
+        )
+
+    result = transcription_service.transcribe_audio(
+        str(reference_path),
+        language=settings.WHISPER_LANGUAGE,
+        beam_size=1,
+    )
+    engine = result.get("engine", "faster-whisper")
+    if engine in {"offline-fallback", "faster-whisper-error-fallback"}:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=result.get("transcript", "Whisper local no está disponible."),
+        )
+
+    transcript = str(result.get("transcript", "")).strip()
+    if not transcript:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Whisper no detectó voz transcribible en la muestra.",
+        )
+
+    return VoiceReferenceTranscriptionResponse(
+        reference_audio_id=request.reference_audio_id,
+        transcript=transcript,
+        language=result.get("language") or settings.WHISPER_LANGUAGE,
+        language_probability=float(result.get("language_probability") or 0.0),
+        transcription_time_ms=float(result.get("transcription_time_ms") or 0.0),
+        engine=engine,
+    )
 
 @router.post("/synthesize", response_model=VoiceGenerationResponse)
 def synthesize_cloned_voice(request: VoiceGenerationRequest):

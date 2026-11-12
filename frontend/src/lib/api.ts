@@ -1,6 +1,7 @@
 import {
   SystemHealthResponse,
   VoiceGenerationResponse,
+  VoiceReferenceTranscriptionResponse,
   VishingScenario,
   AudioAnalysisResponse,
   SocialEngineeringAnalysisResponse,
@@ -9,6 +10,25 @@ import {
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+export async function transcribeVoiceReference(
+  referenceAudioId: string,
+  consentGranted: boolean
+): Promise<VoiceReferenceTranscriptionResponse> {
+  const res = await fetch(`${API_BASE}/generation/transcribe-reference`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reference_audio_id: referenceAudioId,
+      consent_granted: consentGranted,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Error en la transcripción local" }));
+    throw new Error(err.detail || "Error transcribiendo la referencia");
+  }
+  return res.json();
+}
 
 export async function fetchHealth(): Promise<SystemHealthResponse> {
   const res = await fetch(`${API_BASE}/health`);

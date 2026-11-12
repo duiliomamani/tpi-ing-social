@@ -243,10 +243,25 @@ class F5TTSAdapter(BaseTTSAdapter):
                 temp_clean_ref,
                 reference_transcript,
             )
+            clean_reference_text = reference_transcript.strip()
+            target_text = text.strip()
+            reference_text_bytes = len(clean_reference_text.encode("utf-8"))
+            target_text_bytes = len(target_text.encode("utf-8"))
+            effective_speed = 0.3 if target_text_bytes < 10 else speed
+            estimated_total_seconds = ref_profile["duration_seconds"] * (
+                1 + target_text_bytes / reference_text_bytes / effective_speed
+            )
+            if estimated_total_seconds > settings.MAX_F5_TOTAL_DURATION_SECONDS:
+                raise ValueError(
+                    f"La frase y la referencia proyectan {estimated_total_seconds:.1f} s de inferencia. "
+                    f"Para la demo local, acorte el texto para quedar dentro de "
+                    f"{settings.MAX_F5_TOTAL_DURATION_SECONDS:.0f} s."
+                )
+
             infer_args = {
                 "ref_file": ref_profile["clean_ref_path"],
-                "ref_text": reference_transcript.strip(),
-                "gen_text": text.strip(),
+                "ref_text": clean_reference_text,
+                "gen_text": target_text,
                 "cfg_strength": cfg_strength,
                 "nfe_step": nfe_step,
                 "speed": speed,

@@ -15,8 +15,8 @@ import {
   Clock,
   AudioWaveform
 } from "lucide-react";
-import { synthesizeVoice, uploadVoiceReference, getAudioUrl } from "@/lib/api";
-import { VoiceGenerationResponse } from "@/lib/types";
+import { synthesizeVoice, transcribeVoiceReference, uploadVoiceReference, getAudioUrl } from "@/lib/api";
+import { VoiceGenerationResponse, VoiceReferenceTranscriptionResponse } from "@/lib/types";
 import { AudioPlayer } from "./AudioPlayer";
 
 export const GenerationLabTab: React.FC = () => {
@@ -28,6 +28,7 @@ export const GenerationLabTab: React.FC = () => {
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [referenceInfo, setReferenceInfo] = useState<any>(null);
   const [referenceTranscript, setReferenceTranscript] = useState("");
+  const [transcriptionInfo, setTranscriptionInfo] = useState<VoiceReferenceTranscriptionResponse | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -43,6 +44,7 @@ export const GenerationLabTab: React.FC = () => {
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTranscribingReference, setIsTranscribingReference] = useState(false);
   const [generationResult, setGenerationResult] = useState<VoiceGenerationResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -77,6 +79,7 @@ export const GenerationLabTab: React.FC = () => {
           setReferenceId(res.reference_id);
           setReferenceInfo(res);
           setReferenceTranscript("");
+          setTranscriptionInfo(null);
         } catch (err: any) {
           setErrorMessage(err.message);
         }
@@ -119,9 +122,29 @@ export const GenerationLabTab: React.FC = () => {
       setReferenceId(res.reference_id);
       setReferenceInfo(res);
       setReferenceTranscript("");
+      setTranscriptionInfo(null);
       setRecordedBlobUrl(URL.createObjectURL(file));
     } catch (err: any) {
       setErrorMessage(err.message);
+    }
+  };
+
+  const handleTranscribeReference = async () => {
+    if (!consentGranted || !referenceId) {
+      setErrorMessage("Cargue una referencia autorizada antes de transcribirla.");
+      return;
+    }
+
+    try {
+      setIsTranscribingReference(true);
+      setErrorMessage(null);
+      const result = await transcribeVoiceReference(referenceId, consentGranted);
+      setReferenceTranscript(result.transcript);
+      setTranscriptionInfo(result);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    } finally {
+      setIsTranscribingReference(false);
     }
   };
 
@@ -235,7 +258,7 @@ export const GenerationLabTab: React.FC = () => {
             {/* Record via Mic */}
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              disabled={!consentGranted}
+              disabled={!consentGranted || isGenerating || isTranscribingReference}
               className={`flex flex-col items-center justify-center rounded-lg border p-4 transition ${
                 isRecording
                   ? "border-rose-500 bg-rose-500/15 text-rose-400 animate-pulse"
@@ -252,7 +275,7 @@ export const GenerationLabTab: React.FC = () => {
             {/* Upload WAV */}
             <label
               className={`flex flex-col items-center justify-center rounded-lg border border-slate-800 bg-slate-900/60 p-4 transition cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800 ${
-                !consentGranted ? "opacity-40 pointer-events-none" : ""
+                !consentGranted || isGenerating || isTranscribingReference ? "opacity-40 pointer-events-none" : ""
               }`}
             >
               <Upload className="h-6 w-6 mb-2 text-cyan-400" />
@@ -262,7 +285,7 @@ export const GenerationLabTab: React.FC = () => {
                 type="file"
                 accept="audio/*,.wav,.mp3,.ogg,.m4a,.webm"
                 onChange={handleFileUpload}
-                disabled={!consentGranted}
+                disabled={!consentGranted || isGenerating || isTranscribingReference}
                 className="hidden"
               />
             </label>
@@ -294,20 +317,39 @@ export const GenerationLabTab: React.FC = () => {
 
           {referenceInfo && (
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 flex justify-between">
-                <span>Transcripción literal de la muestra:</span>
-                <span className="text-[10px] text-slate-500">{referenceTranscript.length} caracteres</span>
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="reference-transcript" className="text-xs font-semibold text-slate-300">
+                  Transcripción de la muestra:
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTranscribeReference}
+                  disabled={!consentGranted || isGenerating || isTranscribingReference}
+                  className="rounded border border-cyan-500/40 bg-cyan-950/40 px-2.5 py-1 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-900/50 disabled:opacity-40"
+                >
+                  {isTranscribingReference ? "Transcribiendo localmente…" : "Crear borrador con IA"}
+                </button>
+              </div>
               <textarea
+                id="reference-transcript"
                 rows={2}
                 value={referenceTranscript}
                 onChange={(e) => setReferenceTranscript(e.target.value)}
+                disabled={isTranscribingReference}
                 className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
-                placeholder="Escriba exactamente las palabras que se oyen en la muestra..."
+                placeholder="Genere un borrador local y corrija aquí la transcripción..."
               />
               <p className="text-[10px] text-slate-500">
-                F5 compara el audio con este texto para inferir la voz. Corrija nombres y palabras antes de generar.
+                Whisper corre en CPU local; la primera carga puede tardar. Revise nombres y palabras: la transcripción debe cubrir todo el clip (5–12 s).
               </p>
+              {transcriptionInfo && (
+                <p className="text-[10px] text-cyan-300/80">
+                  Borrador de {transcriptionInfo.engine} · {transcriptionInfo.transcription_time_ms} ms · idioma detectado {transcriptionInfo.language} ({Math.round(transcriptionInfo.language_probability * 100)}%).
+                </p>
+              )}
+              <span className="block text-right text-[10px] text-slate-500">
+                {referenceTranscript.length} caracteres
+              </span>
             </div>
           )}
 
@@ -379,7 +421,7 @@ export const GenerationLabTab: React.FC = () => {
 
           <button
             onClick={handleGenerate}
-            disabled={isGenerating || !consentGranted || !referenceId || !referenceTranscript.trim()}
+            disabled={isGenerating || isTranscribingReference || !consentGranted || !referenceId || !referenceTranscript.trim()}
             className="w-full flex items-center justify-center space-x-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-bold text-black hover:from-cyan-400 hover:to-blue-500 disabled:opacity-40 transition shadow-lg shadow-cyan-900/30"
           >
             {isGenerating ? (

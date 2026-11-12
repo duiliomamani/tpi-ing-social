@@ -4,9 +4,9 @@ from fastapi import APIRouter
 from app.core.config import settings
 from app.models.schemas import SystemHealthResponse, ModelStatus
 from app.adapters.gemma_adapter import GemmaAdapter
-from app.adapters.whisper_adapter import FasterWhisperAdapter
 from app.services.audio_detection_service import audio_detection_service
 from app.services.watermark_detection_service import watermark_detection_service
+from app.services.transcription_service import transcription_service
 from app.services.voice_generation_service import voice_generation_service
 
 router = APIRouter(prefix="/health", tags=["Salud del Sistema y Modelos"])
@@ -14,12 +14,11 @@ router = APIRouter(prefix="/health", tags=["Salud del Sistema y Modelos"])
 # Reuse the loaded adapters. Polling health must not allocate new PyTorch
 # models on MPS for every browser refresh.
 gemma_adapter = GemmaAdapter()
-whisper_adapter = FasterWhisperAdapter()
 
 @router.get("", response_model=SystemHealthResponse)
 def get_system_health():
     gemma = gemma_adapter
-    whisper = whisper_adapter
+    whisper = transcription_service.adapter
     aasist = audio_detection_service.aasist_adapter
     perth = watermark_detection_service.adapter
     f5_tts = voice_generation_service.tts_adapter

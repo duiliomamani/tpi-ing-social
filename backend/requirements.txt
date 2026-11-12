@@ -10,6 +10,7 @@ soundfile>=0.12.1
 librosa>=0.10.1
 torch>=2.2.0
 torchaudio>=2.2.0
+chatterbox-tts>=0.1.7,<0.2.0
 faster-whisper>=1.0.0
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

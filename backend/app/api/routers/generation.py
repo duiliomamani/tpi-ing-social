@@ -78,7 +78,8 @@ async def upload_voice_reference(
 @router.post("/synthesize", response_model=VoiceGenerationResponse)
 def synthesize_cloned_voice(request: VoiceGenerationRequest):
     """
-    Ejecuta la inferencia de clonación y síntesis de voz con Chatterbox Multilingual V3.
+    Sintetiza directamente desde texto con el modelo TTS y, si se proporciona,
+    condiciona la voz con la muestra autorizada.
     """
     if not request.consent_granted:
         raise HTTPException(

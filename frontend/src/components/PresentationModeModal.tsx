@@ -50,8 +50,9 @@ const PRESENTATION_STEPS = [
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          En este módulo demostramos que la clonación de voz extrae la frecuencia fundamental (F0) y resonancias formánticas
-          de una muestra biológica autorizada para sintetizar fonemas arbitrarios.
+          En este módulo el modelo genera habla directamente desde texto y usa una muestra biológica autorizada
+          como referencia de identidad vocal. Las mediciones de F0 sirven para comparar el resultado; no se fuerza
+          una frecuencia única ni se ecualizan formantes de forma global.
         </p>
         <div className="rounded-lg bg-black/40 border border-cyan-500/30 p-3 space-y-1 text-slate-300">
           <strong className="text-cyan-300 block">Doble salvaguarda implementada:</strong>

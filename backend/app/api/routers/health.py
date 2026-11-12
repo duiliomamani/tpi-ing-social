@@ -57,7 +57,7 @@ def get_system_health():
             device="CPU"
         ),
         "chatterbox_tts": ModelStatus(
-            name="Chatterbox Multilingual V3",
+            name=chatterbox.engine_name,
             available=c_ok,
             status_message=c_msg,
             device=device_name

@@ -48,7 +48,7 @@ class VoiceGenerationService:
             filename=filename,
             filepath=output_path,
             original_name=f"Clonación de {speaker_alias}",
-            sample_rate=settings.TARGET_SAMPLE_RATE,
+            sample_rate=result.get("sample_rate", settings.TARGET_SAMPLE_RATE),
             duration=result["duration_seconds"],
             is_synthetic=True,
             watermark_detected=result["watermark_embedded"],

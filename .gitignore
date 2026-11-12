@@ -30,6 +30,10 @@ backend/data/uploads/*
 backend/data/experiments/*
 !backend/data/experiments/.gitkeep
 
+# Downloaded neural model checkpoints and generated voice samples
+/backend/weights/
+/backend/data/audio_samples/synth_*.wav
+
 # OS
 .DS_Store
 Thumbs.db

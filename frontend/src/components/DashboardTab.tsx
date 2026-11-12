@@ -78,8 +78,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
           </div>
           <h3 className="text-base font-bold text-white mb-2">1. Generación Ética</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Clonación acústica zero-shot mediante Chatterbox Multilingual V3. Exige consentimiento expreso firmado,
-            perfila la frecuencia fundamental de la voz autorizada y embebe marcas de agua auditables.
+            Síntesis neuronal directa desde texto, condicionada por una referencia autorizada cuando está disponible.
+            El F0 se informa como medición; el modelo conserva su entonación natural.
           </p>
         </div>
 
@@ -135,9 +135,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
           <div className="rounded-xl border border-slate-800 bg-cyber-850 p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-300">Síntesis / Clonación</span>
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className={`h-2 w-2 rounded-full ${health?.models?.chatterbox_tts?.available ? "bg-emerald-400" : "bg-amber-400"}`} />
             </div>
-            <div className="text-sm font-bold text-white mb-1">Chatterbox V3</div>
+            <div className="text-sm font-bold text-white mb-1">Chatterbox Multilingual TTS</div>
             <p className="text-[11px] text-slate-400 leading-tight">
               {health?.models?.chatterbox_tts?.status_message || "Motor acústico local listo"}
             </p>

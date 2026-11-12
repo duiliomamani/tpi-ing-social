@@ -10,7 +10,7 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 
 **VoiceShield Lab** es una Proof of Concept (PoC) académica completamente funcional diseñada para analizar los tres aspectos críticos del fraude por voz asistido por Inteligencia Artificial:
 
-1. **Generación:** Clonación y síntesis de voz mediante **Chatterbox Multilingual V3** bajo autorización expresa y firma digital de procedencia **PerTh**.
+1. **Generación:** Síntesis directa desde texto con **Chatterbox Multilingual TTS**, condicionada por una muestra autorizada y con marca PerTh integrada. El código reporta F₀ como medición; no afirma bloquearlo a un valor exacto.
 2. **Ataque Simulado:** Consola interactiva de llamadas telefónicas ficticias que recrea 4 escenarios pedagógicos (suplantación directiva, extorsión emocional, interacción legítima y vishing clásico con voz humana).
 3. **Defensa Multicapa:** Panel de evaluación forense en 4 dimensiones:
    - **Dimensión A (Acústica):** Clasificador de deepfakes de audio **AASIST** (scores crudos no calibrados).
@@ -30,7 +30,7 @@ tpi-ing-social/
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
 │   │   │   ├── aasist_adapter.py      # Red AASIST (PyTorch + Forense)
-│   │   │   ├── chatterbox_adapter.py  # Clonación TTS + Vocoder
+│   │   │   ├── chatterbox_adapter.py  # TTS directo condicionado por muestra de voz
 │   │   │   ├── gemma_adapter.py       # Ollama Gemma 3 4B + Prompt Defense
 │   │   │   ├── perth_adapter.py       # Spread Spectrum Watermark
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
@@ -98,6 +98,16 @@ Ejecute el script de configuración integral (prepara entornos virtuales, depend
 Una vez iniciado:
 - **Frontend Web:** Abre en [http://localhost:3000](http://localhost:3000)
 - **Backend API & Swagger:** Abre en [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### Pesos del modelo de voz
+
+La instalación incluye `chatterbox-tts`, pero los checkpoints no se versionan en Git. Para habilitar el TTS neuronal local, descargue los archivos requeridos por Chatterbox Multilingual V2 a `backend/weights/chatterbox` después de la configuración:
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python -c 'from huggingface_hub import snapshot_download; snapshot_download(repo_id="ResembleAI/chatterbox", allow_patterns=["t3_mtl23ls_v2.safetensors", "s3gen.pt", "ve.pt", "grapheme_mtl_merged_expanded_v1.json", "conds.pt", "Cangjie5_TC.json"], local_dir="backend/weights/chatterbox")'
+```
+
+El adaptador usa `ChatterboxMultilingualTTS.generate()` directamente con la muestra de referencia. Si solo está disponible Piper, la interfaz lo identifica como respaldo fonético y aclara que no clona la referencia. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis de herramientas y limitaciones.
 
 ---
 

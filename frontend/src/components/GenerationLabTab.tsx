@@ -158,8 +158,8 @@ export const GenerationLabTab: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-white">Generación de Voz Sintética Autorizada</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Entorno ético para clonar la voz de un participante con consentimiento explícito utilizando
-          Chatterbox Multilingual V3 con marca de agua PerTh permanente.
+          Entorno local para sintetizar desde texto y condicionar el timbre con una muestra autorizada.
+          El tono se mide como diagnóstico; no se fuerza a una frecuencia fija.
         </p>
       </div>
 
@@ -297,12 +297,12 @@ export const GenerationLabTab: React.FC = () => {
             {isGenerating ? (
               <>
                 <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                <span>Ejecutando Inferencia con Chatterbox V3...</span>
+                <span>Generando voz con el motor disponible...</span>
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" />
-                <span>Sintetizar Voz con Chatterbox Multilingual V3</span>
+                <span>Sintetizar voz desde texto</span>
               </>
             )}
           </button>
@@ -351,7 +351,7 @@ export const GenerationLabTab: React.FC = () => {
 
               {/* Perceptual & Forensic Evaluation Metrics */}
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-2 text-xs">
-                <span className="font-semibold text-slate-300">Calibración Biométrica y Tono Frecuencial:</span>
+                <span className="font-semibold text-slate-300">Mediciones de tono para diagnóstico:</span>
                 <div className="grid grid-cols-2 gap-3 text-slate-400 text-[11px] pt-1">
                   <div>
                     <span className="text-slate-500">F0 Referencia (Titular):</span>{" "}
@@ -360,26 +360,26 @@ export const GenerationLabTab: React.FC = () => {
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">F0 Clon Sintetizado:</span>{" "}
+                    <span className="text-slate-500">F0 mediana de salida:</span>{" "}
                     <strong className="text-emerald-400">
-                      {generationResult.cloned_pitch_hz ? `${generationResult.cloned_pitch_hz} Hz (Exacto)` : "Calibrado"}
+                      {generationResult.cloned_pitch_hz ? `${generationResult.cloned_pitch_hz} Hz` : "No disponible"}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Alineación Tonal (Pitch Lock):</span>{" "}
+                    <span className="text-slate-500">Ajuste global de tono:</span>{" "}
                     <strong className="text-cyan-400">
-                      {generationResult.pitch_correction_semitones !== undefined
-                        ? `${generationResult.pitch_correction_semitones > 0 ? "+" : ""}${generationResult.pitch_correction_semitones} st (Bloqueado)`
-                        : "Calibración Biológica"}
+                      {generationResult.pitch_correction_semitones !== undefined && generationResult.pitch_correction_semitones !== null
+                        ? `${generationResult.pitch_correction_semitones > 0 ? "+" : ""}${generationResult.pitch_correction_semitones} st`
+                        : "No aplicado; conserva la entonación"}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Resonancia & Formantes:</span>{" "}
-                    <strong className="text-cyan-400">LTAS / Tracto Vocal Titular</strong>
+                    <span className="text-slate-500">Referencia de voz:</span>{" "}
+                    <strong className="text-cyan-400">Condicionamiento neuronal del timbre</strong>
                   </div>
                   <div>
                     <span className="text-slate-500">Marca de Agua:</span>{" "}
-                    <strong className="text-emerald-400">PerthNet Neuronal (Inaudible)</strong>
+                    <strong className="text-emerald-400">Marca integrada por el motor</strong>
                   </div>
                   <div>
                     <span className="text-slate-500">Duración:</span>{" "}

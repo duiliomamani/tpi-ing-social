@@ -36,8 +36,17 @@ export interface VoiceGenerationResponse {
 }
 
 export interface VoiceReferenceTranscriptionResponse {
+  source_audio_id: string;
   reference_audio_id: string;
-  transcript: string;
+  source_transcript: string;
+  reference_transcript: string;
+  audio_url: string;
+  source_duration_seconds: number;
+  duration_seconds: number;
+  sample_rate: number;
+  channels: number;
+  clip_start_seconds: number;
+  clip_end_seconds: number;
   language: string;
   language_probability: number;
   transcription_time_ms: number;

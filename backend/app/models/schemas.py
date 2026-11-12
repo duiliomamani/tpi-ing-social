@@ -48,8 +48,17 @@ class VoiceReferenceTranscriptionRequest(BaseModel):
     consent_granted: bool = Field(..., description="Consentimiento para procesar la muestra de voz")
 
 class VoiceReferenceTranscriptionResponse(BaseModel):
+    source_audio_id: str
     reference_audio_id: str
-    transcript: str
+    source_transcript: str
+    reference_transcript: str
+    audio_url: str
+    source_duration_seconds: float
+    duration_seconds: float
+    sample_rate: int
+    channels: int
+    clip_start_seconds: float
+    clip_end_seconds: float
     language: str
     language_probability: float
     transcription_time_ms: float

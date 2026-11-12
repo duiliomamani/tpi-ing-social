@@ -29,6 +29,7 @@ class Settings(BaseModel):
     TARGET_SAMPLE_RATE: int = 16000
     MAX_UPLOAD_SIZE_BYTES: int = 100 * 1024 * 1024  # 100 MB
     MAX_AUDIO_DURATION_SECONDS: float = 300.0  # 5 minutes for lab demos
+    MAX_VOICE_SOURCE_DURATION_SECONDS: float = 600.0  # Allow long source recordings for local transcription
     MAX_VOICE_REFERENCE_DURATION_SECONDS: float = 12.0  # F5-TTS reference limit
     MAX_F5_TOTAL_DURATION_SECONDS: float = 30.0  # Keep one local demo inference bounded
     

@@ -42,6 +42,7 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
         audio_path: str,
         language: str = "es",
         beam_size: int = 5,
+        word_timestamps: bool = False,
     ) -> Dict[str, Any]:
         start_time = time.time()
         self._load_model()
@@ -52,17 +53,29 @@ class FasterWhisperAdapter(BaseWhisperAdapter):
                     audio_path,
                     language=language,
                     beam_size=beam_size,
-                    vad_filter=True
+                    vad_filter=True,
+                    word_timestamps=word_timestamps,
                 )
                 
                 segment_list = []
                 full_text_parts = []
                 for segment in segments:
-                    segment_list.append({
+                    segment_data = {
                         "start": round(segment.start, 2),
                         "end": round(segment.end, 2),
                         "text": segment.text.strip()
-                    })
+                    }
+                    if word_timestamps:
+                        segment_data["words"] = [
+                            {
+                                "start": round(word.start, 3),
+                                "end": round(word.end, 3),
+                                "text": word.word,
+                                "probability": round(float(word.probability), 3),
+                            }
+                            for word in (segment.words or [])
+                        ]
+                    segment_list.append(segment_data)
                     full_text_parts.append(segment.text.strip())
                 
                 full_text = " ".join(full_text_parts)

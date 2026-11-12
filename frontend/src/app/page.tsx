@@ -17,6 +17,7 @@ export default function Home() {
   const [health, setHealth] = useState<SystemHealthResponse | null>(null);
   const [systemOnline, setSystemOnline] = useState(false);
   const [presentationOpen, setPresentationOpen] = useState(false);
+  const [demoAudio, setDemoAudio] = useState<{ filename: string; transcript: string } | null>(null);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -26,6 +27,7 @@ export default function Home() {
           setSystemOnline(true);
         })
         .catch(() => {
+          setHealth(null);
           setSystemOnline(false);
         });
     };
@@ -43,15 +45,40 @@ export default function Home() {
           setActiveTab={setActiveTab}
           openPresentation={() => setPresentationOpen(true)}
           systemOnline={systemOnline}
+          onDataPurged={() => {
+            setDemoAudio(null);
+            setActiveTab("dashboard");
+          }}
         />
 
         <main className="mx-auto max-w-7xl px-4 py-8">
           {activeTab === "dashboard" && (
             <DashboardTab health={health} onNavigate={setActiveTab} />
           )}
-          {activeTab === "generation" && <GenerationLabTab />}
-          {activeTab === "detection" && <AcousticDetectionTab />}
-          {activeTab === "confidence" && <ConfidenceMatrixTab />}
+          {activeTab === "generation" && (
+            <GenerationLabTab
+              onAnalyzeGeneratedAudio={(filename, transcript) => {
+                setDemoAudio({ filename, transcript });
+                setActiveTab("detection");
+              }}
+            />
+          )}
+          {activeTab === "detection" && (
+            <AcousticDetectionTab
+              initialSampleName={demoAudio?.filename}
+              initialTranscript={demoAudio?.transcript}
+              onEvaluateAudio={(filename, transcript) => {
+                setDemoAudio({ filename, transcript });
+                setActiveTab("confidence");
+              }}
+            />
+          )}
+          {activeTab === "confidence" && (
+            <ConfidenceMatrixTab
+              initialSampleName={demoAudio?.filename}
+              initialTranscript={demoAudio?.transcript}
+            />
+          )}
           {activeTab === "experiments" && <ExperimentsLabTab />}
           {activeTab === "conclusions" && <ConclusionsTab />}
         </main>
@@ -72,7 +99,7 @@ export default function Home() {
           <div className="text-left">
             <span className="font-bold text-slate-300">VoiceShield Lab</span> — Proof of Concept Universitaria
             <p className="text-[11px] text-slate-500 mt-0.5">
-              "Ingeniería social asistida por IA: clonación de voz (vishing) y detección de llamadas fraudulentas"
+              "Clonación de voz autorizada, análisis forense de audio y evaluación defensiva de riesgo"
             </p>
           </div>
           <div className="text-right text-[11px] text-slate-500 font-mono">

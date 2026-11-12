@@ -23,15 +23,24 @@ import {
 } from "@/lib/types";
 import {
   evaluateComprehensiveRisk,
-  analyzeSocialEngineeringText,
   fetchLabSamples
 } from "@/lib/api";
 
-export const ConfidenceMatrixTab: React.FC = () => {
+interface ConfidenceMatrixTabProps {
+  initialSampleName?: string | null;
+  initialTranscript?: string;
+}
+
+const REFERENCE_SAMPLE_NAMES = ["scenario_a.wav", "scenario_b.wav", "scenario_c.wav", "scenario_d.wav"];
+
+export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
+  initialSampleName,
+  initialTranscript = ""
+}) => {
   const [samples, setSamples] = useState<LabAudioSample[]>([]);
-  const [selectedSample, setSelectedSample] = useState<string>("scenario_a.wav");
+  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
   const [verifiedIdentity, setVerifiedIdentity] = useState<boolean>(false);
-  const [customTranscript, setCustomTranscript] = useState<string>("");
+  const [customTranscript, setCustomTranscript] = useState<string>(initialTranscript);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [riskAssessment, setRiskAssessment] = useState<MultilayerRiskAssessmentResponse | null>(null);
@@ -42,10 +51,18 @@ export const ConfidenceMatrixTab: React.FC = () => {
     fetchLabSamples().then(setSamples).catch(console.error);
   }, []);
 
+  const clearEvaluation = () => {
+    setRiskAssessment(null);
+    setSocialAnalysis(null);
+    setErrorMessage(null);
+  };
+
   const handleEvaluate = async () => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
+      setRiskAssessment(null);
+      setSocialAnalysis(null);
 
       // 1. Comprehensive Multilayer Risk
       const riskRes = await evaluateComprehensiveRisk(
@@ -54,13 +71,9 @@ export const ConfidenceMatrixTab: React.FC = () => {
         customTranscript.trim() || undefined
       );
       setRiskAssessment(riskRes);
-
-      // 2. Fetch or compute Social Analysis details
-      const sample = samples.find((item) => item.audio_file === selectedSample);
-      const textToAnalyze = customTranscript.trim() || sample?.transcript || "";
-      if (textToAnalyze) {
-        const semRes = await analyzeSocialEngineeringText(textToAnalyze, selectedSample);
-        setSocialAnalysis(semRes);
+      setSocialAnalysis(riskRes.social_analysis || null);
+      if (!customTranscript.trim() && riskRes.social_analysis?.transcript) {
+        setCustomTranscript(riskRes.social_analysis.transcript);
       }
     } catch (err: any) {
       setErrorMessage(err.message);
@@ -79,8 +92,8 @@ export const ConfidenceMatrixTab: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-white">Evaluación Multidimensional de Factores de Riesgo</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Integración en profundidad de 4 dimensiones independientes: Acústica física, Procedencia criptográfica,
-          Ingeniería social semántica y Verificación fuera de banda.
+          Integración de 4 dimensiones: evidencia acústica, marca de procedencia, contenido de la comunicación
+          y verificación de identidad fuera de banda.
         </p>
       </div>
 
@@ -98,9 +111,14 @@ export const ConfidenceMatrixTab: React.FC = () => {
                 setSelectedSample(e.target.value);
                 const sample = samples.find((item) => item.audio_file === e.target.value);
                 if (sample) setCustomTranscript(sample.transcript);
+                else setCustomTranscript(e.target.value === initialSampleName ? initialTranscript : "");
+                clearEvaluation();
               }}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
             >
+              {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
+                <option value={initialSampleName}>Audio analizado en esta sesión</option>
+              )}
               <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Martín Silva)</option>
               <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Lucas Morales)</option>
               <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Sofía Benítez)</option>
@@ -131,7 +149,10 @@ export const ConfidenceMatrixTab: React.FC = () => {
               <input
                 type="checkbox"
                 checked={verifiedIdentity}
-                onChange={(e) => setVerifiedIdentity(e.target.checked)}
+                onChange={(e) => {
+                  setVerifiedIdentity(e.target.checked);
+                  clearEvaluation();
+                }}
                 className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
               />
               <span className="text-xs text-slate-300 font-medium">
@@ -162,15 +183,24 @@ export const ConfidenceMatrixTab: React.FC = () => {
           </div>
         </div>
 
+        {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && selectedSample === initialSampleName && (
+          <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-xs text-cyan-100">
+            Se evaluará <strong>{initialSampleName}</strong>. El texto de la sesión se carga como contexto semántico y podés editarlo antes de ejecutar la matriz.
+          </div>
+        )}
+
         {/* Transcript editor */}
         <div>
           <label className="text-xs font-semibold text-slate-300 block mb-1">
-            Texto Transcripto (Evidencia Semántica No Confiable):
+            Transcripción para el análisis semántico (revisala antes de evaluar):
           </label>
           <textarea
             rows={2}
             value={customTranscript}
-            onChange={(e) => setCustomTranscript(e.target.value)}
+            onChange={(e) => {
+              setCustomTranscript(e.target.value);
+              clearEvaluation();
+            }}
             placeholder="Texto transcripto de la comunicación para análisis semántico con Gemma 3 4B..."
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
           />

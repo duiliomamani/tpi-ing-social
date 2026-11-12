@@ -11,6 +11,11 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+async function responseErrorMessage(response: Response, fallback: string): Promise<string> {
+  const error = await response.json().catch(() => null);
+  return typeof error?.detail === "string" ? error.detail : fallback;
+}
+
 export async function transcribeVoiceReference(
   referenceAudioId: string,
   consentGranted: boolean,
@@ -36,13 +41,13 @@ export async function transcribeVoiceReference(
 
 export async function fetchHealth(): Promise<SystemHealthResponse> {
   const res = await fetch(`${API_BASE}/health`);
-  if (!res.ok) throw new Error("Error consultando estado de salud del sistema");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error consultando estado de salud del sistema"));
   return res.json();
 }
 
 export async function fetchLabSamples(): Promise<LabAudioSample[]> {
   const res = await fetch(`${API_BASE}/samples`);
-  if (!res.ok) throw new Error("Error cargando muestras de evaluación");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error cargando muestras de evaluación"));
   return res.json();
 }
 
@@ -83,7 +88,7 @@ export async function uploadVoiceReference(formData: FormData): Promise<any> {
 
 export async function analyzeAudioSample(sampleName: string): Promise<AudioAnalysisResponse> {
   const res = await fetch(`${API_BASE}/detection/analyze-sample/${sampleName}`);
-  if (!res.ok) throw new Error("Error analizando muestra de audio");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error analizando muestra de audio"));
   return res.json();
 }
 
@@ -110,7 +115,7 @@ export async function analyzeSocialEngineeringText(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transcript, audio_id: audioId })
   });
-  if (!res.ok) throw new Error("Error analizando factores semánticos");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error analizando factores semánticos"));
   return res.json();
 }
 
@@ -128,7 +133,7 @@ export async function evaluateComprehensiveRisk(
       custom_transcript: customTranscript
     })
   });
-  if (!res.ok) throw new Error("Error en la evaluación de confianza multicapa");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error en la evaluación de confianza multicapa"));
   return res.json();
 }
 
@@ -144,7 +149,7 @@ export async function runBenchmarkExperiment(
       synthetic_sample: synthSample
     })
   });
-  if (!res.ok) throw new Error("Error ejecutando benchmark experimental");
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error ejecutando benchmark experimental"));
   return res.json();
 }
 

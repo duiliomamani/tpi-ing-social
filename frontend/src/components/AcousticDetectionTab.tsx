@@ -20,13 +20,25 @@ import { analyzeAudioSample, analyzeUploadedAudio, getAudioUrl } from "@/lib/api
 import { WaveformSpectrogram } from "./WaveformSpectrogram";
 import { AudioPlayer } from "./AudioPlayer";
 
-export const AcousticDetectionTab: React.FC = () => {
-  const [selectedSample, setSelectedSample] = useState<string>("scenario_a.wav");
+interface AcousticDetectionTabProps {
+  initialSampleName?: string | null;
+  initialTranscript?: string;
+  onEvaluateAudio?: (filename: string, transcript: string) => void;
+}
+
+const REFERENCE_SAMPLE_NAMES = ["scenario_a.wav", "scenario_b.wav", "scenario_c.wav", "scenario_d.wav"];
+
+export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
+  initialSampleName,
+  initialTranscript = "",
+  onEvaluateAudio
+}) => {
+  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AudioAnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Analyze preloaded scenario
+  // Analyze a reference sample or a clone generated in this session.
   const handleAnalyzePreloaded = async () => {
     try {
       setIsAnalyzing(true);
@@ -48,6 +60,7 @@ export const AcousticDetectionTab: React.FC = () => {
     try {
       setIsAnalyzing(true);
       setErrorMessage(null);
+      setAnalysisResult(null);
       const res = await analyzeUploadedAudio(file);
       setAnalysisResult(res);
     } catch (err: any) {
@@ -73,6 +86,12 @@ export const AcousticDetectionTab: React.FC = () => {
       </div>
 
       {/* Input Options: Select Scenario OR Upload */}
+      {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
+        <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-xs text-cyan-100">
+          El clon recién generado quedó seleccionado. Ejecutá el análisis para comparar AASIST y PerTh.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Scenario Selection */}
         <div className="md:col-span-2 cyber-panel p-4 flex flex-col justify-between">
@@ -82,9 +101,16 @@ export const AcousticDetectionTab: React.FC = () => {
             </label>
             <select
               value={selectedSample}
-              onChange={(e) => setSelectedSample(e.target.value)}
+              onChange={(e) => {
+                setSelectedSample(e.target.value);
+                setAnalysisResult(null);
+                setErrorMessage(null);
+              }}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
             >
+              {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
+                <option value={initialSampleName}>Clon generado en esta sesión</option>
+              )}
               <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Sintético con Marca PerTh)</option>
               <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Sintético con Marca PerTh)</option>
               <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Voz Humana de Control)</option>
@@ -118,14 +144,14 @@ export const AcousticDetectionTab: React.FC = () => {
               Cargar Archivo Externo:
             </label>
             <p className="text-[11px] text-slate-400 leading-tight mb-3">
-              Permite subir audios WAV o MP3 grabados con micrófono externo para contrastar.
+              También podés subir un audio externo o un clon descargado para contrastar.
             </p>
           </div>
 
           <label className="flex items-center justify-center space-x-2 rounded-lg border border-slate-700 bg-slate-800/80 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 cursor-pointer transition">
             <Upload className="h-4 w-4 text-cyan-400" />
-            <span>Subir WAV / MP3</span>
-            <input type="file" accept=".wav,.mp3" onChange={handleFileUpload} className="hidden" />
+            <span>Subir audio</span>
+            <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} className="hidden" />
           </label>
         </div>
       </div>
@@ -239,6 +265,29 @@ export const AcousticDetectionTab: React.FC = () => {
               />
             </div>
           </div>
+
+          {onEvaluateAudio && (
+            <div className="flex flex-col gap-3 rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white">¿Qué significa esta evidencia en contexto?</h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  Combiná el resultado acústico con el contenido y la verificación independiente de identidad.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onEvaluateAudio(
+                  analysisResult.filename,
+                  analysisResult.filename === initialSampleName ? initialTranscript : ""
+                )}
+                className="flex shrink-0 items-center justify-center space-x-2 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-bold text-black transition hover:bg-cyan-400"
+              >
+                <Layers className="h-4 w-4" />
+                <span>Continuar a la matriz de riesgo</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

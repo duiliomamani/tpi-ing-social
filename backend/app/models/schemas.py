@@ -172,6 +172,7 @@ class DimensionEvidence(BaseModel):
 class MultilayerRiskAssessmentResponse(BaseModel):
     audio_id: str
     dimensions: List[DimensionEvidence]
+    social_analysis: Optional[SocialEngineeringAnalysisResponse] = None
     verified_identity: bool
     sensitive_request_detected: bool
     operational_risk_level: Literal["BAJO", "MEDIO", "ALTO", "CRITICO"]

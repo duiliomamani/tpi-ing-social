@@ -150,6 +150,7 @@ export interface DimensionEvidence {
 export interface MultilayerRiskAssessmentResponse {
   audio_id: string;
   dimensions: DimensionEvidence[];
+  social_analysis?: SocialEngineeringAnalysisResponse | null;
   verified_identity: boolean;
   sensitive_request_detected: boolean;
   operational_risk_level: "BAJO" | "MEDIO" | "ALTO" | "CRITICO";

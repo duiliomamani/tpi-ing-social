@@ -6,6 +6,7 @@ import {
   Square,
   Upload,
   Play,
+  Activity,
   CheckCircle2,
   AlertTriangle,
   Download,
@@ -19,7 +20,11 @@ import { synthesizeVoice, transcribeVoiceReference, uploadVoiceReference, getAud
 import { VoiceGenerationResponse, VoiceReferenceTranscriptionResponse } from "@/lib/types";
 import { AudioPlayer } from "./AudioPlayer";
 
-export const GenerationLabTab: React.FC = () => {
+interface GenerationLabTabProps {
+  onAnalyzeGeneratedAudio?: (filename: string, transcript: string) => void;
+}
+
+export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGeneratedAudio }) => {
   // Consent
   const [consentGranted, setConsentGranted] = useState(false);
   const [speakerAlias, setSpeakerAlias] = useState("Participante Autorizado #1");
@@ -52,6 +57,7 @@ export const GenerationLabTab: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTranscribingReference, setIsTranscribingReference] = useState(false);
   const [generationResult, setGenerationResult] = useState<VoiceGenerationResponse | null>(null);
+  const [generationTranscript, setGenerationTranscript] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const sourceDurationSeconds = Number(sourceInfo?.duration_seconds || 0);
   const selectedClipDuration = clipEndSeconds - clipStartSeconds;
@@ -259,6 +265,7 @@ export const GenerationLabTab: React.FC = () => {
         speed: generationSpeed,
       });
       setGenerationResult(res);
+      setGenerationTranscript(textToSynthesize.trim());
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -716,14 +723,24 @@ export const GenerationLabTab: React.FC = () => {
               </div>
 
               {/* Action */}
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {onAnalyzeGeneratedAudio && (
+                  <button
+                    type="button"
+                    onClick={() => onAnalyzeGeneratedAudio(generationResult.filename, generationTranscript)}
+                    className="flex items-center justify-center space-x-2 rounded-lg bg-cyan-500 py-2 text-xs font-bold text-black hover:bg-cyan-400 transition"
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    <span>Analizar este clon</span>
+                  </button>
+                )}
                 <a
                   href={getAudioUrl(generationResult.audio_url)}
                   download={generationResult.filename}
-                  className="flex-1 flex items-center justify-center space-x-1.5 rounded-lg border border-slate-700 bg-slate-800 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
+                  className="flex items-center justify-center space-x-1.5 rounded-lg border border-slate-700 bg-slate-800 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  <span>Descargar WAV para Laboratorio</span>
+                  <span>Descargar WAV</span>
                 </a>
               </div>
             </div>

@@ -197,6 +197,7 @@ class RiskAssessmentService:
         response = MultilayerRiskAssessmentResponse(
             audio_id=audio_id,
             dimensions=dimensions,
+            social_analysis=social_analysis,
             verified_identity=verified_identity,
             sensitive_request_detected=sensitive_request,
             operational_risk_level=operational_level,

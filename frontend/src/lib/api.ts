@@ -2,7 +2,7 @@ import {
   SystemHealthResponse,
   VoiceGenerationResponse,
   VoiceReferenceTranscriptionResponse,
-  VishingScenario,
+  LabAudioSample,
   AudioAnalysisResponse,
   SocialEngineeringAnalysisResponse,
   MultilayerRiskAssessmentResponse,
@@ -40,17 +40,9 @@ export async function fetchHealth(): Promise<SystemHealthResponse> {
   return res.json();
 }
 
-export async function fetchScenarios(): Promise<VishingScenario[]> {
-  const res = await fetch(`${API_BASE}/simulation/scenarios`);
-  if (!res.ok) throw new Error("Error cargando escenarios de simulación");
-  return res.json();
-}
-
-export async function verifyOutOfBandChannel(scenarioId: string): Promise<any> {
-  const res = await fetch(`${API_BASE}/simulation/verify-channel/${scenarioId}`, {
-    method: "POST"
-  });
-  if (!res.ok) throw new Error("Error en verificación fuera de banda");
+export async function fetchLabSamples(): Promise<LabAudioSample[]> {
+  const res = await fetch(`${API_BASE}/samples`);
+  if (!res.ok) throw new Error("Error cargando muestras de evaluación");
   return res.json();
 }
 

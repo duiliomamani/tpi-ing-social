@@ -85,10 +85,10 @@ export const AcousticDetectionTab: React.FC = () => {
               onChange={(e) => setSelectedSample(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
             >
-              <option value="scenario_a.wav">Escenario A — Suplantación Directiva (Sintético con Marca PerTh)</option>
-              <option value="scenario_b.wav">Escenario B — Urgencia Emocional Aduana (Sintético con Marca PerTh)</option>
-              <option value="scenario_c.wav">Escenario C — Coordinación Laboral (Voz Biológica Control)</option>
-              <option value="scenario_d.wav">Escenario D — Falso Soporte Clave OTP (Voz Humana Phishing)</option>
+              <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Sintético con Marca PerTh)</option>
+              <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Sintético con Marca PerTh)</option>
+              <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Voz Humana de Control)</option>
+              <option value="scenario_d.wav">Muestra D — Solicitud de OTP con voz humana</option>
             </select>
           </div>
 

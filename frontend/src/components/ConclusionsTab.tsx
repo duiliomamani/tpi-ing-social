@@ -60,7 +60,7 @@ export const ConclusionsTab: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-white mb-1.5">2. El Factor Humano Prevalece</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            El Escenario D probó que un ataque telefónico no requiere clonación por IA para ser devastador.
+            La muestra D recuerda que un ataque telefónico no requiere clonación por IA para ser peligroso.
             La ingeniería social explota sesgos cognitivos (autoridad, urgencia, culpa) independientemente
             de si la voz es humana o sintética.
           </p>

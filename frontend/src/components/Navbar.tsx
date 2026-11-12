@@ -20,11 +20,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "generation", label: "1. Generación de Voz" },
-    { id: "simulation", label: "2. Simulación Vishing" },
-    { id: "detection", label: "3. Detección Acústica" },
-    { id: "confidence", label: "4. Factores de Confianza" },
-    { id: "experiments", label: "5. Laboratorio Comparativo" },
-    { id: "conclusions", label: "6. Conclusiones y Protocolo" },
+    { id: "detection", label: "2. Detección Acústica" },
+    { id: "confidence", label: "3. Factores de Confianza" },
+    { id: "experiments", label: "4. Laboratorio Comparativo" },
+    { id: "conclusions", label: "5. Conclusiones y Protocolo" },
   ];
 
   const handlePurge = async () => {

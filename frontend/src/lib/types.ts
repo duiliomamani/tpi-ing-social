@@ -53,7 +53,7 @@ export interface VoiceReferenceTranscriptionResponse {
   engine: string;
 }
 
-export interface VishingScenario {
+export interface LabAudioSample {
   id: string;
   code: "scenario_a" | "scenario_b" | "scenario_c" | "scenario_d";
   title: string;

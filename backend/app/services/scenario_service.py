@@ -1,13 +1,13 @@
 import os
 from typing import List, Dict, Optional
-from app.models.schemas import VishingScenario
+from app.models.schemas import LabAudioSample
 from app.core.config import settings
 
 SCENARIOS_DATA: List[Dict] = [
     {
         "id": "scenario_a",
         "code": "scenario_a",
-        "title": "Escenario A — Suplantación de Autoridad",
+        "title": "Muestra A — Suplantación de Autoridad",
         "category": "Vishing Corporativo",
         "description": "Una voz sintética autorizada representa a un directivo ficticio exigiendo la aprobación inmediata de un pago/procedimiento sin ticket formal.",
         "caller_name": "Martín Silva (Director Operaciones)",
@@ -25,7 +25,7 @@ SCENARIOS_DATA: List[Dict] = [
     {
         "id": "scenario_b",
         "code": "scenario_b",
-        "title": "Escenario B — Urgencia Emocional",
+        "title": "Muestra B — Urgencia Emocional",
         "category": "Fraude Familiar / Personal",
         "description": "Una voz sintética autorizada finge ser un allegado en una situación de vulnerabilidad o detención administrativa solicitando dinero urgente.",
         "caller_name": "Lucas Morales (Allegado Ficticio)",
@@ -43,7 +43,7 @@ SCENARIOS_DATA: List[Dict] = [
     {
         "id": "scenario_c",
         "code": "scenario_c",
-        "title": "Escenario C — Comunicación Legítima",
+        "title": "Muestra C — Comunicación Legítima",
         "category": "Interacción Cotidiana",
         "description": "Una persona real realiza una coordinación laboral habitual sin manipulación, sin peticiones sensibles ni urgencias ficticias.",
         "caller_name": "Sofía Benítez",
@@ -61,7 +61,7 @@ SCENARIOS_DATA: List[Dict] = [
     {
         "id": "scenario_d",
         "code": "scenario_d",
-        "title": "Escenario D — Llamada Sospechosa con Voz Humana",
+        "title": "Muestra D — Solicitud Sospechosa con Voz Humana",
         "category": "Ingeniería Social Clásica (No-AI)",
         "description": "Una grabación humana real contiene técnicas agresivas de manipulación y solicitud de credenciales sensibles, demostrando que el fraude telefónico no requiere IA para ser peligroso.",
         "caller_name": "Mesa de Ayuda Central (Falso Soporte)",
@@ -79,13 +79,13 @@ SCENARIOS_DATA: List[Dict] = [
 ]
 
 class ScenarioService:
-    def get_all_scenarios(self) -> List[VishingScenario]:
-        return [VishingScenario(**s) for s in SCENARIOS_DATA]
+    def get_all_scenarios(self) -> List[LabAudioSample]:
+        return [LabAudioSample(**s) for s in SCENARIOS_DATA]
 
-    def get_scenario_by_id(self, scenario_id: str) -> Optional[VishingScenario]:
+    def get_scenario_by_id(self, scenario_id: str) -> Optional[LabAudioSample]:
         for s in SCENARIOS_DATA:
             if s["id"] == scenario_id or s["code"] == scenario_id:
-                return VishingScenario(**s)
+                return LabAudioSample(**s)
         return None
 
 scenario_service = ScenarioService()

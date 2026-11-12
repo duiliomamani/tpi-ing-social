@@ -2,15 +2,12 @@
 
 import React from "react";
 import {
-  ShieldCheck,
   Cpu,
-  Brain,
   Mic,
-  Waves,
-  Fingerprint,
+  Layers,
   ArrowRight,
   Sparkles,
-  AlertTriangle
+  AudioWaveform
 } from "lucide-react";
 import { SystemHealthResponse } from "@/lib/types";
 
@@ -36,14 +33,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
             VoiceShield <span className="text-cyan-400">Lab</span>
           </h1>
           <p className="mt-2 text-lg font-medium text-slate-300">
-            Ingeniería social asistida por IA: clonación de voz (vishing) y detección de llamadas fraudulentas.
+            Clonación autorizada de voz y análisis de audio para investigar amenazas de ingeniería social.
           </p>
           <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-            Plataforma académica experimental para la comprensión de los tres vectores de la amenaza:
-            <strong className="text-cyan-300"> 1) Generación</strong> de clones de voz autorizados,
-            <strong className="text-amber-300"> 2) Simulación</strong> controlada de ingeniería social telefónica (vishing), y
-            <strong className="text-emerald-300"> 3) Defensa en profundidad</strong> mediante detección acústica AASIST,
-            marcas de agua PerTh y análisis semántico con Gemma 3 4B.
+            Plataforma académica local para generar clones con consentimiento y evaluar audios con detección acústica,
+            marcas de procedencia PerTh, análisis semántico y verificación fuera de banda.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -55,12 +49,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
             <button
-              onClick={() => onNavigate("simulation")}
-              className="flex items-center space-x-2 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
-            >
-              <span>Ver Simulador de Vishing</span>
-            </button>
-            <button
               onClick={() => onNavigate("confidence")}
               className="flex items-center space-x-2 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
             >
@@ -70,7 +58,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
         </div>
       </div>
 
-      {/* 3 Academic Pillars Cards */}
+      {/* Core laboratory capabilities */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="cyber-panel p-5 border-cyan-500/20">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 mb-4">
@@ -85,23 +73,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
 
         <div className="cyber-panel p-5 border-amber-500/20">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-950/60 border border-amber-500/40 text-amber-400 mb-4">
-            <AlertTriangle className="h-5 w-5" />
+            <AudioWaveform className="h-5 w-5" />
           </div>
-          <h3 className="text-base font-bold text-white mb-2">2. Ataque Simulado</h3>
+          <h3 className="text-base font-bold text-white mb-2">2. Análisis de Audio</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            4 escenarios pedagógicos de vishing (Suplantación de directivos, Urgencia emocional en aduanas,
-            Llamada legítima y Phishing con voz humana) sin conexión telefónica externa.
+            Analiza muestras propias y audios de referencia con AASIST, examina marcas PerTh y prueba la robustez ante ruido y compresión.
           </p>
         </div>
 
         <div className="cyber-panel p-5 border-emerald-500/20">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 mb-4">
-            <ShieldCheck className="h-5 w-5" />
+            <Layers className="h-5 w-5" />
           </div>
-          <h3 className="text-base font-bold text-white mb-2">3. Defensa Multicapa</h3>
+          <h3 className="text-base font-bold text-white mb-2">3. Evaluación Multicapa</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Fusión de 4 dimensiones independientes: Red AASIST (features acústicas), PerTh (procedencia espectral),
-            Gemma 3 4B (8 factores de manipulación) y verificación fuera de banda (Regla de Oro).
+            Combina evidencia acústica y semántica con verificación de identidad por un canal independiente.
           </p>
         </div>
       </div>

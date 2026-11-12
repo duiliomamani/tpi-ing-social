@@ -19,16 +19,16 @@ import {
 import {
   MultilayerRiskAssessmentResponse,
   SocialEngineeringAnalysisResponse,
-  VishingScenario
+  LabAudioSample
 } from "@/lib/types";
 import {
   evaluateComprehensiveRisk,
   analyzeSocialEngineeringText,
-  fetchScenarios
+  fetchLabSamples
 } from "@/lib/api";
 
 export const ConfidenceMatrixTab: React.FC = () => {
-  const [scenarios, setScenarios] = useState<VishingScenario[]>([]);
+  const [samples, setSamples] = useState<LabAudioSample[]>([]);
   const [selectedSample, setSelectedSample] = useState<string>("scenario_a.wav");
   const [verifiedIdentity, setVerifiedIdentity] = useState<boolean>(false);
   const [customTranscript, setCustomTranscript] = useState<string>("");
@@ -39,7 +39,7 @@ export const ConfidenceMatrixTab: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchScenarios().then(setScenarios).catch(console.error);
+    fetchLabSamples().then(setSamples).catch(console.error);
   }, []);
 
   const handleEvaluate = async () => {
@@ -56,8 +56,8 @@ export const ConfidenceMatrixTab: React.FC = () => {
       setRiskAssessment(riskRes);
 
       // 2. Fetch or compute Social Analysis details
-      const scenario = scenarios.find((s) => s.audio_file === selectedSample);
-      const textToAnalyze = customTranscript.trim() || scenario?.transcript || "";
+      const sample = samples.find((item) => item.audio_file === selectedSample);
+      const textToAnalyze = customTranscript.trim() || sample?.transcript || "";
       if (textToAnalyze) {
         const semRes = await analyzeSocialEngineeringText(textToAnalyze, selectedSample);
         setSocialAnalysis(semRes);
@@ -96,15 +96,15 @@ export const ConfidenceMatrixTab: React.FC = () => {
               value={selectedSample}
               onChange={(e) => {
                 setSelectedSample(e.target.value);
-                const sc = scenarios.find((s) => s.audio_file === e.target.value);
-                if (sc) setCustomTranscript(sc.transcript);
+                const sample = samples.find((item) => item.audio_file === e.target.value);
+                if (sample) setCustomTranscript(sample.transcript);
               }}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
             >
-              <option value="scenario_a.wav">Escenario A — Suplantación Directivo (Martín Silva)</option>
-              <option value="scenario_b.wav">Escenario B — Urgencia Emocional Aduana (Lucas Morales)</option>
-              <option value="scenario_c.wav">Escenario C — Coordinación Laboral (Sofía Benítez)</option>
-              <option value="scenario_d.wav">Escenario D — Falso Soporte TI Clave OTP (Ataque Humano)</option>
+              <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Martín Silva)</option>
+              <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Lucas Morales)</option>
+              <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Sofía Benítez)</option>
+              <option value="scenario_d.wav">Muestra D — Solicitud de OTP con voz humana</option>
             </select>
           </div>
 

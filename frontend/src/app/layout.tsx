@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VoiceShield Lab — Vishing & Synthetic Audio Defense",
-  description: "Laboratorio Académico de Ingeniería Social asistida por IA: Clonación de Voz y Detección de Llamadas Fraudulentas",
+  title: "VoiceShield Lab — Voice Cloning & Audio Analysis",
+  description: "Laboratorio académico de clonación de voz autorizada, análisis acústico y evaluación de riesgo en comunicaciones.",
 };
 
 export default function RootLayout({

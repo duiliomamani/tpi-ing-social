@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { DashboardTab } from "@/components/DashboardTab";
 import { GenerationLabTab } from "@/components/GenerationLabTab";
-import { VishingSimulationTab } from "@/components/VishingSimulationTab";
 import { AcousticDetectionTab } from "@/components/AcousticDetectionTab";
 import { ConfidenceMatrixTab } from "@/components/ConfidenceMatrixTab";
 import { ExperimentsLabTab } from "@/components/ExperimentsLabTab";
@@ -51,7 +50,6 @@ export default function Home() {
             <DashboardTab health={health} onNavigate={setActiveTab} />
           )}
           {activeTab === "generation" && <GenerationLabTab />}
-          {activeTab === "simulation" && <VishingSimulationTab />}
           {activeTab === "detection" && <AcousticDetectionTab />}
           {activeTab === "confidence" && <ConfidenceMatrixTab />}
           {activeTab === "experiments" && <ExperimentsLabTab />}

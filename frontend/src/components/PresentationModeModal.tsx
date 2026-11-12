@@ -5,14 +5,6 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  ShieldAlert,
-  Mic,
-  Phone,
-  Activity,
-  Layers,
-  Brain,
-  CheckCircle2,
-  Lock,
   Sparkles
 } from "lucide-react";
 
@@ -64,28 +56,8 @@ const PRESENTATION_STEPS = [
   },
   {
     step: 3,
-    tab: "simulation",
-    title: "3. Simulación Controlada de Vishing",
-    tagline: "Los 4 escenarios pedagógicos de manipulación",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          Para que el laboratorio sea seguro, no se realizan llamadas reales a la red telefónica.
-          Se implementa una consola telefónica ficticia con 4 casos de estudio:
-        </p>
-        <ul className="space-y-1 list-disc list-inside">
-          <li><strong className="text-white">Escenario A:</strong> Suplantación de autoridad (Director de Operaciones).</li>
-          <li><strong className="text-white">Escenario B:</strong> Urgencia emocional en aduanas aeroportuarias.</li>
-          <li><strong className="text-white">Escenario C:</strong> Control negativo benigno de comunicación cotidiana.</li>
-          <li><strong className="text-white">Escenario D:</strong> Phishing telefónico con voz humana real (demuestra que la trampa no depende de la IA).</li>
-        </ul>
-      </div>
-    )
-  },
-  {
-    step: 4,
     tab: "detection",
-    title: "4. Detección Acústica Física (AASIST)",
+    title: "3. Detección Acústica Física (AASIST)",
     tagline: "Clasificación espectro-temporal y scores no calibrados",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
@@ -101,9 +73,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 5,
+    step: 4,
     tab: "confidence",
-    title: "5. Análisis Semántico con Gemma 3 4B",
+    title: "4. Análisis Semántico con Gemma 3 4B",
     tagline: "Detección de los 8 factores de manipulación psicológica",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
@@ -125,14 +97,14 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 6,
+    step: 5,
     tab: "confidence",
-    title: "6. Matriz de Confianza y la Regla de Oro",
-    tagline: "Defensa en Profundidad ante el 'Escenario D'",
+    title: "5. Matriz de Confianza y la Regla de Oro",
+    tagline: "Evaluación conjunta de audio, contenido e identidad",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          ¿Qué ocurre si un atacante utiliza una voz humana natural para pedir una clave OTP (Escenario D)?
+          ¿Qué ocurre si una voz humana natural pide una clave OTP (muestra D)?
           El detector acústico dirá "Voz Humana".
         </p>
         <p className="rounded-lg bg-rose-950/40 border border-rose-500/40 p-3 text-rose-200 font-semibold">
@@ -144,9 +116,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 7,
+    step: 6,
     tab: "experiments",
-    title: "7. Robustez Acústica y Filtros Telefónicos",
+    title: "6. Robustez Acústica y Filtros Telefónicos",
     tagline: "El impacto de la compresión y el ancho de banda telefónico (PSTN)",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
@@ -163,9 +135,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 8,
+    step: 7,
     tab: "conclusions",
-    title: "8. Conclusiones y Recomendaciones Defensivas",
+    title: "7. Conclusiones y Recomendaciones Defensivas",
     tagline: "Protocolo operativo para organizaciones y saneamiento de datos",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">

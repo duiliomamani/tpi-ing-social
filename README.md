@@ -1,18 +1,19 @@
 # VoiceShield Lab 🛡️
 
-**Laboratorio de Vishing y Detección de Voces Sintéticas**  
-*Ingeniería social asistida por IA: clonación de voz (vishing) y detección de llamadas fraudulentas.*  
+**Laboratorio de Clonación de Voz y Análisis de Audio**
+
+*Generación de voz autorizada, detección acústica y análisis de riesgo en comunicaciones.*
 Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 
 ---
 
 ## 📋 Resumen del Proyecto
 
-**VoiceShield Lab** es una Proof of Concept (PoC) académica completamente funcional diseñada para analizar los tres aspectos críticos del fraude por voz asistido por Inteligencia Artificial:
+**VoiceShield Lab** es una Proof of Concept (PoC) académica para experimentar con la generación autorizada de voz y evaluar audios desde varias capas:
 
 1. **Generación:** Síntesis directa en español con **F5-TTS**, condicionada por una muestra de voz autorizada y su transcripción literal. El laboratorio puede agregar su marca PerTh después de la generación; F₀ es una medición diagnóstica y no se fuerza a un valor exacto.
-2. **Ataque Simulado:** Consola interactiva de llamadas telefónicas ficticias que recrea 4 escenarios pedagógicos (suplantación directiva, extorsión emocional, interacción legítima y vishing clásico con voz humana).
-3. **Defensa Multicapa:** Panel de evaluación forense en 4 dimensiones:
+2. **Análisis de Audio:** Evaluación de muestras propias y audios de referencia con detección acústica, marcas de procedencia y experimentos de robustez.
+3. **Evaluación Multicapa:** Panel de análisis en 4 dimensiones:
    - **Dimensión A (Acústica):** Clasificador de deepfakes de audio **AASIST** (scores crudos no calibrados).
    - **Dimensión B (Procedencia):** Detección de marcas de agua psicoacústicas **PerTh**.
    - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y análisis semántico de 8 factores de manipulación mediante **Gemma 3 4B (Ollama)**.
@@ -40,7 +41,7 @@ tpi-ing-social/
 │   │   ├── services/          # Lógica de negocio independiente
 │   │   └── main.py            # Entrypoint API
 │   ├── data/
-│   │   ├── audio_samples/     # 4 audios pregenerados de los escenarios
+│   │   ├── audio_samples/     # Muestras pregeneradas para análisis y benchmarks
 │   │   ├── uploads/           # Grabaciones y archivos temporales
 │   │   └── experiments/       # Muestras procesadas con FFmpeg
 │   ├── tests/                 # Suite de pruebas unitarias y de integración
@@ -48,7 +49,7 @@ tpi-ing-social/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/               # Next.js 14 App Router
-│   │   ├── components/        # Componentes UI (Dashboard, Simulador, etc.)
+│   │   ├── components/        # Dashboard, clonación, detección y análisis
 │   │   └── lib/               # Clientes API y tipos TypeScript
 │   ├── package.json
 │   └── tailwind.config.js
@@ -161,14 +162,16 @@ npm run dev
 
 ---
 
-## 🎭 Los 4 Escenarios Académicos Predefinidos
+## 🔊 Muestras Pregrabadas de Evaluación
 
-| Escenario | Nombre | Tipo de Voz | Intención | Vector Evaluado |
+El laboratorio incluye cuatro audios de referencia para comparar detectores, evaluar la matriz de riesgo y ejecutar el benchmark. Son muestras fijas del conjunto académico; el flujo principal para probar una clonación nueva es generarla en el laboratorio y cargar el resultado en Detección Acústica.
+
+| Muestra | Nombre | Tipo de Voz | Contenido | Vector Evaluado |
 | :--- | :--- | :--- | :--- | :--- |
-| **A** | Suplantación Directiva | Sintética (Clonada) | Maliciosa (Vishing) | Autoridad invocada, urgencia inmediata y evasión de ticket formal. |
-| **B** | Urgencia Emocional | Sintética (Clonada) | Maliciosa (Vishing) | Explotación de afecto/miedo (retenido en aduana aeroportuaria pidiendo dinero). |
+| **A** | Suplantación Directiva | Sintética pregenerada | Maliciosa | Autoridad invocada, urgencia inmediata y evasión de ticket formal. |
+| **B** | Urgencia Emocional | Sintética pregenerada | Maliciosa | Explotación de afecto/miedo (retenido en aduana aeroportuaria pidiendo dinero). |
 | **C** | Comunicación Legítima | Biológica Humana | Benigna (Control) | Control negativo sin manipulación ni peticiones sensibles. |
-| **D** | Falso Soporte TI (OTP) | Biológica Humana | Maliciosa (Vishing) | Demuestra que **el fraude telefónico no requiere IA para ser crítico**. |
+| **D** | Falso Soporte TI (OTP) | Voz humana | Maliciosa | Demuestra que **el fraude telefónico no requiere IA para ser crítico**. |
 
 ---
 
@@ -183,7 +186,7 @@ Pruebas verificadas:
 - `test_aasist_adapter`: Evaluación técnica de scores acústicos no calibrados.
 - `test_perth_watermark_detection`: Detección coherente de marca de agua spread-spectrum.
 - `test_social_engineering_factors`: Extracción de factores de manipulación semántica.
-- `test_risk_assessment_golden_rule`: Verificación estricta de la Regla de Oro (Escenario D).
+- `test_risk_assessment_golden_rule`: Verificación estricta de la Regla de Oro (Muestra D).
 - `test_comparative_experiment_pipeline`: Protocolo de robustez con perturbaciones FFmpeg y cálculo de EER.
 
 ---

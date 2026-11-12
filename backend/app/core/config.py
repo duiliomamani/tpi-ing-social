@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 class Settings(BaseModel):
-    APP_NAME: str = "VoiceShield Lab — Vishing & Synthetic Audio Defense"
+    APP_NAME: str = "VoiceShield Lab — Voice Cloning & Audio Analysis"
     VERSION: str = "1.0.0"
     DEBUG: bool = True
     

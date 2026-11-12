@@ -81,8 +81,8 @@ class VoiceGenerationResponse(BaseModel):
     cloned_pitch_hz: Optional[float] = None
     pitch_correction_semitones: Optional[float] = None
 
-# ==================== Vishing Scenarios ====================
-class VishingScenario(BaseModel):
+# ==================== Lab Audio Samples ====================
+class LabAudioSample(BaseModel):
     id: str
     code: Literal["scenario_a", "scenario_b", "scenario_c", "scenario_d"]
     title: str

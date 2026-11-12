@@ -8,7 +8,7 @@ from app.core.database import init_db, clear_all_audio_data
 from app.api.routers import (
     health,
     generation,
-    simulation,
+    samples,
     detection,
     social_engineering,
     risk_assessment,
@@ -18,7 +18,7 @@ from app.api.routers import (
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="VoiceShield Lab — Plataforma Académica de Vishing, Clonación de Voz y Detección Multicapa"
+    description="VoiceShield Lab — Plataforma académica de clonación autorizada, análisis acústico y evaluación de riesgo"
 )
 
 # Configuración de CORS para el Frontend Next.js
@@ -38,7 +38,7 @@ def on_startup():
 # Montar Routers Modulares
 app.include_router(health.router, prefix="/api")
 app.include_router(generation.router, prefix="/api")
-app.include_router(simulation.router, prefix="/api")
+app.include_router(samples.router, prefix="/api")
 app.include_router(detection.router, prefix="/api")
 app.include_router(social_engineering.router, prefix="/api")
 app.include_router(risk_assessment.router, prefix="/api")

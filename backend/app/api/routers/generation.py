@@ -4,6 +4,7 @@ import soundfile as sf
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from app.core.config import settings
 from app.models.schemas import VoiceGenerationRequest, VoiceGenerationResponse
+from app.adapters.f5_tts_adapter import GenerationInProgressError
 from app.services.voice_generation_service import voice_generation_service
 from app.services.audio_processing import normalize_audio_to_wav
 
@@ -53,7 +54,8 @@ async def upload_voice_reference(
     # Validar propiedades de audio ya normalizado
     try:
         info = sf.info(str(dest_path))
-        duration = round(float(info.duration), 2)
+        audio_duration = float(info.duration)
+        duration = round(audio_duration, 2)
         sample_rate = int(info.samplerate)
         channels = int(info.channels)
     except Exception as e:
@@ -62,6 +64,24 @@ async def upload_voice_reference(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se pudo leer las propiedades del audio: {str(e)}"
+        )
+
+    if audio_duration > settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"La referencia dura {duration:.1f} s. Para F5-TTS use un clip de voz "
+                f"de hasta {settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:.0f} s y escriba "
+                "la transcripción exacta de todo ese clip. Recorte el audio antes de cargarlo."
+            ),
+        )
+
+    if audio_duration < 1.0:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La referencia debe contener al menos un segundo de voz clara.",
         )
 
     return {
@@ -106,6 +126,8 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
         return response
     except PermissionError as pe:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(pe))
+    except GenerationInProgressError as busy:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(busy))
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
     except Exception as e:

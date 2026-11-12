@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 from app.core.config import settings
 from app.services.audio_processing import apply_ffmpeg_perturbation
-from app.adapters.aasist_adapter import AASISTAdapter
+from app.services.audio_detection_service import audio_detection_service
 from app.models.schemas import (
     ExperimentResult,
     ConfusionMatrixData,
@@ -16,7 +16,7 @@ from app.core.database import get_db_connection
 
 class ExperimentService:
     def __init__(self):
-        self.aasist = AASISTAdapter()
+        self.aasist = audio_detection_service.aasist_adapter
 
     def run_comparative_experiment(
         self,

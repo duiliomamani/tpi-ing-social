@@ -29,6 +29,7 @@ class Settings(BaseModel):
     TARGET_SAMPLE_RATE: int = 16000
     MAX_UPLOAD_SIZE_BYTES: int = 100 * 1024 * 1024  # 100 MB
     MAX_AUDIO_DURATION_SECONDS: float = 300.0  # 5 minutes for lab demos
+    MAX_VOICE_REFERENCE_DURATION_SECONDS: float = 12.0  # F5-TTS reference limit
     
     # Academic Label
     SYNTHETIC_AUDIO_BANNER: str = "AUDIO SINTÉTICO — DEMOSTRACIÓN ACADÉMICA"

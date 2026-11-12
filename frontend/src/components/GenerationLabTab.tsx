@@ -35,10 +35,10 @@ export const GenerationLabTab: React.FC = () => {
 
   // Text to Synthesize
   const [textToSynthesize, setTextToSynthesize] = useState(
-    "Hola, esta es una demostración académica de clonación de voz autorizada para la materia de Ingeniería Social."
+    "Esta es una demo local de VoiceShield para el laboratorio académico."
   );
   const [cfgStrength, setCfgStrength] = useState(2.0);
-  const [nfeStep, setNfeStep] = useState(32);
+  const [nfeStep, setNfeStep] = useState(16);
   const [generationSpeed, setGenerationSpeed] = useState(1.0);
 
   // Generation state
@@ -357,7 +357,7 @@ export const GenerationLabTab: React.FC = () => {
                 onChange={(e) => setNfeStep(Number(e.target.value))}
                 className="w-full accent-cyan-400"
               />
-              <span className="block text-[10px] text-slate-500">Más pasos aumentan el cálculo de inferencia.</span>
+              <span className="block text-[10px] text-slate-500">16 pasos reducen el cálculo para la demo local; más pasos tardan más.</span>
             </label>
             <label className="space-y-2 text-xs text-slate-300">
               <span className="flex items-center justify-between">

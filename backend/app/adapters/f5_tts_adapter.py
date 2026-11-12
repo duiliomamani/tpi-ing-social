@@ -1,5 +1,6 @@
 import gc
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -14,20 +15,25 @@ from app.adapters.perth_adapter import PerThWatermarkAdapter
 from app.core.config import settings
 
 
+class GenerationInProgressError(RuntimeError):
+    """Raised when this local model is already synthesizing another request."""
+
+
 class F5TTSAdapter(BaseTTSAdapter):
     """Local Spanish F5-TTS inference conditioned on an authorized voice sample."""
 
     MODEL_NAME = "F5TTS_Base"
     CHECKPOINT_NAME = "model_1200000.safetensors"
 
-    def __init__(self):
+    def __init__(self, watermarker: Optional[PerThWatermarkAdapter] = None):
         self.device = self._select_device()
         configured_model_dir = os.getenv("F5_TTS_MODEL_DIR")
         self.model_dir = Path(configured_model_dir) if configured_model_dir else settings.WEIGHTS_DIR / "f5-spanish"
         self.checkpoint_path = self.model_dir / self.CHECKPOINT_NAME
         self.vocab_path = self.model_dir / "vocab.txt"
         self.tts = None
-        self.watermarker: Optional[PerThWatermarkAdapter] = None
+        self.watermarker = watermarker
+        self._inference_lock = threading.Lock()
         self._init_error: Optional[str] = None
         self._init_f5_tts()
         if (
@@ -120,15 +126,36 @@ class F5TTSAdapter(BaseTTSAdapter):
         if audio.size == 0:
             return None
         try:
-            f0, _, _ = librosa.pyin(audio, fmin=65, fmax=400, sr=sample_rate)
-            voiced = f0[~np.isnan(f0)]
-            return float(np.median(voiced)) if len(voiced) else None
+            # YIN is cheaper than pYIN and F0 is diagnostic only for this model.
+            analysis_audio = audio[: sample_rate * 30]
+            f0 = librosa.yin(
+                analysis_audio,
+                fmin=65,
+                fmax=400,
+                sr=sample_rate,
+                frame_length=2048,
+                hop_length=512,
+            )
+            return float(np.median(f0)) if len(f0) else None
         except Exception as exc:
             print(f"[F5TTSAdapter] No se pudo medir F0: {exc}")
             return None
 
-    def _clean_reference(self, ref_path: str, temp_clean_path: str) -> Dict[str, Any]:
-        """Trim edge silence and cap reference duration at F5's 12-second limit."""
+    def _clean_reference(
+        self,
+        ref_path: str,
+        temp_clean_path: str,
+        reference_transcript: str,
+    ) -> Dict[str, Any]:
+        """Trim edge silence and reject references that F5 would silently truncate."""
+        source_info = sf.info(ref_path)
+        if source_info.duration > settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:
+            raise ValueError(
+                f"La referencia dura {source_info.duration:.1f} s; F5-TTS admite como máximo "
+                f"{settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:.0f} s. Recorte una frase "
+                "y use su transcripción exacta."
+            )
+
         audio, sample_rate = librosa.load(
             ref_path,
             sr=settings.TARGET_SAMPLE_RATE,
@@ -139,13 +166,27 @@ class F5TTSAdapter(BaseTTSAdapter):
 
         trimmed, _ = librosa.effects.trim(audio, top_db=28)
         clean_audio = trimmed if trimmed.size >= int(0.5 * sample_rate) else audio
-        clean_audio = clean_audio[: 12 * sample_rate]
+        if clean_audio.size > int(settings.MAX_VOICE_REFERENCE_DURATION_SECONDS * sample_rate):
+            raise ValueError(
+                "La voz clara supera los 12 s. Recorte un fragmento más breve y vuelva a cargarlo."
+            )
         if clean_audio.size < sample_rate:
             raise ValueError("La referencia debe contener al menos un segundo de voz clara.")
+
+        clean_duration = len(clean_audio) / sample_rate
+        transcript_bytes_per_second = (
+            len(reference_transcript.strip().encode("utf-8")) / clean_duration
+        )
+        if not 2.0 <= transcript_bytes_per_second <= 35.0:
+            raise ValueError(
+                "La duración de la muestra no parece coincidir con su transcripción. "
+                "Use un clip de 5–12 s con voz clara y escriba exactamente todo lo que se dice."
+            )
 
         sf.write(temp_clean_path, clean_audio, sample_rate, subtype="PCM_16")
         return {
             "median_f0": self._median_f0(clean_audio, sample_rate),
+            "duration_seconds": clean_duration,
             "clean_ref_path": temp_clean_path,
         }
 
@@ -169,7 +210,7 @@ class F5TTSAdapter(BaseTTSAdapter):
         apply_watermark: bool = True,
         reference_transcript: str = "",
         cfg_strength: float = 2.0,
-        nfe_step: int = 32,
+        nfe_step: int = 16,
         speed: float = 1.0,
     ) -> Dict[str, Any]:
         if not consent_granted:
@@ -191,9 +232,17 @@ class F5TTSAdapter(BaseTTSAdapter):
         output.parent.mkdir(parents=True, exist_ok=True)
         temp_clean_ref = str(output.with_name(f"{output.stem}_clean_ref.wav"))
         ref_profile: Dict[str, Any] = {"median_f0": None, "clean_ref_path": None}
+        if not self._inference_lock.acquire(blocking=False):
+            raise GenerationInProgressError(
+                "F5-TTS ya está generando otro audio en este laboratorio. Espere a que termine."
+            )
 
         try:
-            ref_profile = self._clean_reference(reference_audio_path, temp_clean_ref)
+            ref_profile = self._clean_reference(
+                reference_audio_path,
+                temp_clean_ref,
+                reference_transcript,
+            )
             infer_args = {
                 "ref_file": ref_profile["clean_ref_path"],
                 "ref_text": reference_transcript.strip(),
@@ -258,3 +307,4 @@ class F5TTSAdapter(BaseTTSAdapter):
                     os.remove(temp_clean_ref)
                 except OSError:
                     pass
+            self._inference_lock.release()

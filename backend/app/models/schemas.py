@@ -28,7 +28,7 @@ class VoiceGenerationRequest(BaseModel):
     speaker_alias: str = Field("Participante Autorizado", description="Alias de la persona titular")
     apply_perth_watermark: bool = Field(True, description="Embeber marca de agua perceptual PerTh")
     cfg_strength: float = Field(2.0, ge=0.0, le=5.0, description="Guía de generación de F5-TTS")
-    nfe_step: int = Field(32, ge=16, le=64, description="Pasos de inferencia de F5-TTS")
+    nfe_step: int = Field(16, ge=16, le=64, description="Pasos de inferencia de F5-TTS; 16 recomendado para demo local")
     speed: float = Field(1.0, ge=0.75, le=1.25, description="Velocidad de reproducción de F5-TTS")
 
     @field_validator("reference_transcript")

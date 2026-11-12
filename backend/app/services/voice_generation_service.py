@@ -5,10 +5,11 @@ from app.adapters.f5_tts_adapter import F5TTSAdapter
 from app.core.config import settings
 from app.core.database import save_audio_record
 from app.models.schemas import VoiceGenerationResponse
+from app.services.watermark_detection_service import watermark_detection_service
 
 class VoiceGenerationService:
     def __init__(self):
-        self.tts_adapter = F5TTSAdapter()
+        self.tts_adapter = F5TTSAdapter(watermarker=watermark_detection_service.adapter)
 
     def generate_voice(
         self,

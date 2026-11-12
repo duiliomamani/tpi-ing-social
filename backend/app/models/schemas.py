@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ==================== Health & Status ====================
 class ModelStatus(BaseModel):
@@ -18,10 +18,26 @@ class SystemHealthResponse(BaseModel):
 # ==================== Voice Generation ====================
 class VoiceGenerationRequest(BaseModel):
     text: str = Field(..., min_length=3, max_length=1000, description="Texto en español a sintetizar")
-    reference_audio_id: Optional[str] = Field(None, description="ID del audio de referencia cargado")
+    reference_audio_id: str = Field(
+        ...,
+        pattern=r"^ref_[0-9a-f]{10}$",
+        description="ID del audio de referencia cargado",
+    )
+    reference_transcript: str = Field(..., min_length=1, max_length=2000, description="Transcripción literal del audio de referencia")
     consent_granted: bool = Field(..., description="Consentimiento expreso e informado del titular de la voz")
     speaker_alias: str = Field("Participante Autorizado", description="Alias de la persona titular")
     apply_perth_watermark: bool = Field(True, description="Embeber marca de agua perceptual PerTh")
+    cfg_strength: float = Field(2.0, ge=0.0, le=5.0, description="Guía de generación de F5-TTS")
+    nfe_step: int = Field(32, ge=16, le=64, description="Pasos de inferencia de F5-TTS")
+    speed: float = Field(1.0, ge=0.75, le=1.25, description="Velocidad de reproducción de F5-TTS")
+
+    @field_validator("reference_transcript")
+    @classmethod
+    def reference_transcript_must_contain_words(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("La transcripción literal de la referencia es obligatoria.")
+        return value
 
 class VoiceGenerationResponse(BaseModel):
     audio_id: str

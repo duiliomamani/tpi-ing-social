@@ -32,10 +32,14 @@ export async function verifyOutOfBandChannel(scenarioId: string): Promise<any> {
 
 export async function synthesizeVoice(data: {
   text: string;
-  reference_audio_id?: string;
+  reference_audio_id: string;
+  reference_transcript: string;
   consent_granted: boolean;
   speaker_alias?: string;
   apply_perth_watermark?: boolean;
+  cfg_strength?: number;
+  nfe_step?: number;
+  speed?: number;
 }): Promise<VoiceGenerationResponse> {
   const res = await fetch(`${API_BASE}/generation/synthesize`, {
     method: "POST",

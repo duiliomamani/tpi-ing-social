@@ -1,22 +1,26 @@
 import os
 import uuid
-from typing import Dict, Any, Optional
-from app.adapters.chatterbox_adapter import ChatterboxAdapter
+from typing import Dict, Any
+from app.adapters.f5_tts_adapter import F5TTSAdapter
 from app.core.config import settings
 from app.core.database import save_audio_record
 from app.models.schemas import VoiceGenerationResponse
 
 class VoiceGenerationService:
     def __init__(self):
-        self.tts_adapter = ChatterboxAdapter()
+        self.tts_adapter = F5TTSAdapter()
 
     def generate_voice(
         self,
         text: str,
-        reference_audio_id: Optional[str],
+        reference_audio_id: str,
+        reference_transcript: str,
         consent_granted: bool,
         speaker_alias: str = "Participante Autorizado",
-        apply_perth_watermark: bool = True
+        apply_perth_watermark: bool = True,
+        cfg_strength: float = 2.0,
+        nfe_step: int = 32,
+        speed: float = 1.0,
     ) -> VoiceGenerationResponse:
         """
         Servicio de generación de voz con control ético de consentimiento y registro en BD.
@@ -33,13 +37,19 @@ class VoiceGenerationService:
             candidate_ref = settings.UPLOADS_DIR / f"{reference_audio_id}.wav"
             if candidate_ref.exists():
                 ref_path = str(candidate_ref)
+        if ref_path is None:
+            raise ValueError("No se encontró el audio de referencia cargado.")
 
         result = self.tts_adapter.synthesize(
             text=text,
             reference_audio_path=ref_path,
             output_path=output_path,
             consent_granted=consent_granted,
-            apply_watermark=apply_perth_watermark
+            apply_watermark=apply_perth_watermark,
+            reference_transcript=reference_transcript,
+            cfg_strength=cfg_strength,
+            nfe_step=nfe_step,
+            speed=speed,
         )
 
         # Registrar en la base de datos
@@ -66,7 +76,10 @@ class VoiceGenerationService:
             watermark_embedded=result["watermark_embedded"],
             academic_banner=result["academic_banner"],
             generation_time_ms=result["generation_time_ms"],
-            message="Audio sintético generado y marcado exitosamente bajo autorización explícita.",
+            message=(
+                "Audio sintético generado bajo autorización explícita"
+                + (" y con marca de procedencia del laboratorio." if result["watermark_embedded"] else ".")
+            ),
             ref_pitch_hz=result.get("ref_pitch_hz"),
             cloned_pitch_hz=result.get("cloned_pitch_hz"),
             pitch_correction_semitones=result.get("pitch_correction_semitones")

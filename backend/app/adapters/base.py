@@ -49,7 +49,7 @@ class BaseWatermarkAdapter(ABC):
         pass
 
     @abstractmethod
-    def embed_watermark(self, input_audio_path: str, output_audio_path: str, payload: str = "VOICESHIELD_CHATTERBOX_V3") -> bool:
+    def embed_watermark(self, input_audio_path: str, output_audio_path: str, payload: str = "VOICESHIELD_SYNTHETIC_AUDIO") -> bool:
         """Embed a perceptual threshold watermark."""
         pass
 

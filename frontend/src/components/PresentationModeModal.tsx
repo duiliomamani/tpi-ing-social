@@ -45,19 +45,19 @@ const PRESENTATION_STEPS = [
   {
     step: 2,
     tab: "generation",
-    title: "2. Generación Ética y Procedencia (Chatterbox & PerTh)",
+    title: "2. Generación Ética y Procedencia (F5-TTS & PerTh)",
     tagline: "¿Cómo se produce un clon de voz y cómo se audita su origen?",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          En este módulo el modelo genera habla directamente desde texto y usa una muestra biológica autorizada
-          como referencia de identidad vocal. Las mediciones de F0 sirven para comparar el resultado; no se fuerza
+          En este módulo F5-TTS genera habla en español a partir del texto y condiciona la voz con una muestra
+          autorizada y su transcripción literal. Las mediciones de F0 sirven para comparar el resultado; no se fuerza
           una frecuencia única ni se ecualizan formantes de forma global.
         </p>
         <div className="rounded-lg bg-black/40 border border-cyan-500/30 p-3 space-y-1 text-slate-300">
-          <strong className="text-cyan-300 block">Doble salvaguarda implementada:</strong>
+          <strong className="text-cyan-300 block">Salvaguardas del laboratorio:</strong>
           <div>1. <strong className="text-white">Consentimiento Explícito:</strong> La API rechaza cualquier inferencia si no hay autorización expresa.</div>
-          <div>2. <strong className="text-white">Firma PerTh:</strong> Se embebe una marca de agua en frecuencias imperceptibles para que el audio declare su origen sintético.</div>
+          <div>2. <strong className="text-white">Marca PerTh:</strong> El laboratorio intenta agregar una marca de procedencia al audio generado por F5-TTS.</div>
         </div>
       </div>
     )

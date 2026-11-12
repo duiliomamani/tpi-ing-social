@@ -27,6 +27,7 @@ export const GenerationLabTab: React.FC = () => {
   // Reference Audio
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [referenceInfo, setReferenceInfo] = useState<any>(null);
+  const [referenceTranscript, setReferenceTranscript] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -36,6 +37,9 @@ export const GenerationLabTab: React.FC = () => {
   const [textToSynthesize, setTextToSynthesize] = useState(
     "Hola, esta es una demostración académica de clonación de voz autorizada para la materia de Ingeniería Social."
   );
+  const [cfgStrength, setCfgStrength] = useState(2.0);
+  const [nfeStep, setNfeStep] = useState(32);
+  const [generationSpeed, setGenerationSpeed] = useState(1.0);
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -72,6 +76,7 @@ export const GenerationLabTab: React.FC = () => {
           const res = await uploadVoiceReference(formData);
           setReferenceId(res.reference_id);
           setReferenceInfo(res);
+          setReferenceTranscript("");
         } catch (err: any) {
           setErrorMessage(err.message);
         }
@@ -113,6 +118,7 @@ export const GenerationLabTab: React.FC = () => {
       const res = await uploadVoiceReference(formData);
       setReferenceId(res.reference_id);
       setReferenceInfo(res);
+      setReferenceTranscript("");
       setRecordedBlobUrl(URL.createObjectURL(file));
     } catch (err: any) {
       setErrorMessage(err.message);
@@ -129,16 +135,28 @@ export const GenerationLabTab: React.FC = () => {
       setErrorMessage("Ingrese el texto que desea sintetizar.");
       return;
     }
+    if (!referenceId) {
+      setErrorMessage("Cargue o grabe una muestra de voz antes de generar con F5-TTS.");
+      return;
+    }
+    if (!referenceTranscript.trim()) {
+      setErrorMessage("Escriba la transcripción literal de la muestra de voz.");
+      return;
+    }
 
     try {
       setIsGenerating(true);
       setErrorMessage(null);
       const res = await synthesizeVoice({
         text: textToSynthesize,
-        reference_audio_id: referenceId || undefined,
+        reference_audio_id: referenceId,
+        reference_transcript: referenceTranscript,
         consent_granted: consentGranted,
         speaker_alias: speakerAlias,
-        apply_perth_watermark: true
+        apply_perth_watermark: true,
+        cfg_strength: cfgStrength,
+        nfe_step: nfeStep,
+        speed: generationSpeed,
       });
       setGenerationResult(res);
     } catch (err: any) {
@@ -158,8 +176,8 @@ export const GenerationLabTab: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-white">Generación de Voz Sintética Autorizada</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Entorno local para sintetizar desde texto y condicionar el timbre con una muestra autorizada.
-          El tono se mide como diagnóstico; no se fuerza a una frecuencia fija.
+          F5-TTS en español condiciona la generación con tu audio y su transcripción literal.
+          F₀ se muestra como medición; no se fuerza a una frecuencia fija.
         </p>
       </div>
 
@@ -228,7 +246,7 @@ export const GenerationLabTab: React.FC = () => {
               <span className="text-xs font-semibold">
                 {isRecording ? "Detener Grabación" : "Grabar del Micrófono"}
               </span>
-              <span className="text-[10px] text-slate-500 mt-1">16 kHz mono directo</span>
+              <span className="text-[10px] text-slate-500 mt-1">5–12 s de habla clara, sin música</span>
             </button>
 
             {/* Upload WAV */}
@@ -239,7 +257,7 @@ export const GenerationLabTab: React.FC = () => {
             >
               <Upload className="h-6 w-6 mb-2 text-cyan-400" />
               <span className="text-xs font-semibold text-slate-300">Cargar Archivo de Audio</span>
-              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 / M4A / WebM</span>
+              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 / M4A / WebM · voz clara de 5–12 s</span>
               <input
                 type="file"
                 accept="audio/*,.wav,.mp3,.ogg,.m4a,.webm"
@@ -255,7 +273,7 @@ export const GenerationLabTab: React.FC = () => {
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs space-y-1">
               <div className="flex items-center text-emerald-400 font-semibold space-x-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Referencia Biológica Cargada y Perfilada</span>
+                <span>Muestra de Voz Cargada</span>
               </div>
               <div className="text-slate-300 grid grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
                 <span>Duración: {referenceInfo.duration_seconds}s</span>
@@ -274,6 +292,25 @@ export const GenerationLabTab: React.FC = () => {
             </div>
           )}
 
+          {referenceInfo && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300 flex justify-between">
+                <span>Transcripción literal de la muestra:</span>
+                <span className="text-[10px] text-slate-500">{referenceTranscript.length} caracteres</span>
+              </label>
+              <textarea
+                rows={2}
+                value={referenceTranscript}
+                onChange={(e) => setReferenceTranscript(e.target.value)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
+                placeholder="Escriba exactamente las palabras que se oyen en la muestra..."
+              />
+              <p className="text-[10px] text-slate-500">
+                F5 compara el audio con este texto para inferir la voz. Corrija nombres y palabras antes de generar.
+              </p>
+            </div>
+          )}
+
           {/* Text Input to Synthesize */}
           <div className="space-y-2 pt-2">
             <label className="text-xs font-semibold text-slate-300 flex justify-between">
@@ -289,20 +326,71 @@ export const GenerationLabTab: React.FC = () => {
             />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <label className="space-y-2 text-xs text-slate-300">
+              <span className="flex items-center justify-between">
+                <span>Guía CFG</span>
+                <strong className="font-mono text-cyan-300">{cfgStrength.toFixed(2)}</strong>
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.25"
+                value={cfgStrength}
+                onChange={(e) => setCfgStrength(Number(e.target.value))}
+                className="w-full accent-cyan-400"
+              />
+              <span className="block text-[10px] text-slate-500">Fuerza de guía documentada por F5-TTS.</span>
+            </label>
+            <label className="space-y-2 text-xs text-slate-300">
+              <span className="flex items-center justify-between">
+                <span>Pasos de inferencia</span>
+                <strong className="font-mono text-cyan-300">{nfeStep}</strong>
+              </span>
+              <input
+                type="range"
+                min="16"
+                max="64"
+                step="4"
+                value={nfeStep}
+                onChange={(e) => setNfeStep(Number(e.target.value))}
+                className="w-full accent-cyan-400"
+              />
+              <span className="block text-[10px] text-slate-500">Más pasos aumentan el cálculo de inferencia.</span>
+            </label>
+            <label className="space-y-2 text-xs text-slate-300">
+              <span className="flex items-center justify-between">
+                <span>Velocidad</span>
+                <strong className="font-mono text-cyan-300">{generationSpeed.toFixed(2)}×</strong>
+              </span>
+              <input
+                type="range"
+                min="0.75"
+                max="1.25"
+                step="0.05"
+                value={generationSpeed}
+                onChange={(e) => setGenerationSpeed(Number(e.target.value))}
+                className="w-full accent-cyan-400"
+              />
+              <span className="block text-[10px] text-slate-500">Ajusta la velocidad de la voz generada.</span>
+            </label>
+          </div>
+
           <button
             onClick={handleGenerate}
-            disabled={isGenerating || !consentGranted}
+            disabled={isGenerating || !consentGranted || !referenceId || !referenceTranscript.trim()}
             className="w-full flex items-center justify-center space-x-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-bold text-black hover:from-cyan-400 hover:to-blue-500 disabled:opacity-40 transition shadow-lg shadow-cyan-900/30"
           >
             {isGenerating ? (
               <>
                 <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                <span>Generando voz con el motor disponible...</span>
+                <span>Generando voz con F5-TTS...</span>
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" />
-                <span>Sintetizar voz desde texto</span>
+                <span>Clonar voz con F5-TTS</span>
               </>
             )}
           </button>
@@ -337,7 +425,7 @@ export const GenerationLabTab: React.FC = () => {
                   {generationResult.academic_banner}
                 </span>
                 <p className="text-[10px] text-amber-200/80 mt-0.5">
-                  Firma PerTh embebida: {generationResult.watermark_embedded ? "ACTIVA (Verificable)" : "Inactiva"} | Motor: {generationResult.creator_model}
+                  Marca de procedencia del laboratorio: {generationResult.watermark_embedded ? "Agregada" : "No agregada"} | Motor: {generationResult.creator_model}
                 </p>
               </div>
 
@@ -375,11 +463,13 @@ export const GenerationLabTab: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-500">Referencia de voz:</span>{" "}
-                    <strong className="text-cyan-400">Condicionamiento neuronal del timbre</strong>
+                    <strong className="text-cyan-400">Audio y transcripción de referencia</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Marca de Agua:</span>{" "}
-                    <strong className="text-emerald-400">Marca integrada por el motor</strong>
+                    <span className="text-slate-500">Procedencia:</span>{" "}
+                    <strong className="text-emerald-400">
+                      {generationResult.watermark_embedded ? "Marca del laboratorio agregada" : "Sin marca agregada"}
+                    </strong>
                   </div>
                   <div>
                     <span className="text-slate-500">Duración:</span>{" "}

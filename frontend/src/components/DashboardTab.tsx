@@ -131,15 +131,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
             </p>
           </div>
 
-          {/* Chatterbox TTS */}
+          {/* F5-TTS */}
           <div className="rounded-xl border border-slate-800 bg-cyber-850 p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-300">Síntesis / Clonación</span>
-              <span className={`h-2 w-2 rounded-full ${health?.models?.chatterbox_tts?.available ? "bg-emerald-400" : "bg-amber-400"}`} />
+              <span className={`h-2 w-2 rounded-full ${health?.models?.f5_tts?.available ? "bg-emerald-400" : "bg-amber-400"}`} />
             </div>
-            <div className="text-sm font-bold text-white mb-1">Chatterbox Multilingual TTS</div>
+            <div className="text-sm font-bold text-white mb-1">F5-TTS Español</div>
             <p className="text-[11px] text-slate-400 leading-tight">
-              {health?.models?.chatterbox_tts?.status_message || "Motor acústico local listo"}
+              {health?.models?.f5_tts?.status_message || "Requiere instalar F5-TTS y descargar el checkpoint"}
             </p>
           </div>
 

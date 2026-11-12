@@ -10,7 +10,7 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 
 **VoiceShield Lab** es una Proof of Concept (PoC) académica completamente funcional diseñada para analizar los tres aspectos críticos del fraude por voz asistido por Inteligencia Artificial:
 
-1. **Generación:** Síntesis directa desde texto con **Chatterbox Multilingual TTS**, condicionada por una muestra autorizada y con marca PerTh integrada. El código reporta F₀ como medición; no afirma bloquearlo a un valor exacto.
+1. **Generación:** Síntesis directa en español con **F5-TTS**, condicionada por una muestra de voz autorizada y su transcripción literal. El laboratorio puede agregar su marca PerTh después de la generación; F₀ es una medición diagnóstica y no se fuerza a un valor exacto.
 2. **Ataque Simulado:** Consola interactiva de llamadas telefónicas ficticias que recrea 4 escenarios pedagógicos (suplantación directiva, extorsión emocional, interacción legítima y vishing clásico con voz humana).
 3. **Defensa Multicapa:** Panel de evaluación forense en 4 dimensiones:
    - **Dimensión A (Acústica):** Clasificador de deepfakes de audio **AASIST** (scores crudos no calibrados).
@@ -30,7 +30,7 @@ tpi-ing-social/
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
 │   │   │   ├── aasist_adapter.py      # Red AASIST (PyTorch + Forense)
-│   │   │   ├── chatterbox_adapter.py  # TTS directo condicionado por muestra de voz
+│   │   │   ├── f5_tts_adapter.py      # F5-TTS español condicionado por audio y transcripción
 │   │   │   ├── gemma_adapter.py       # Ollama Gemma 3 4B + Prompt Defense
 │   │   │   ├── perth_adapter.py       # Spread Spectrum Watermark
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
@@ -101,13 +101,15 @@ Una vez iniciado:
 
 ### Pesos del modelo de voz
 
-La instalación incluye `chatterbox-tts`, pero los checkpoints no se versionan en Git. Para habilitar el TTS neuronal local, descargue los archivos requeridos por Chatterbox Multilingual V2 a `backend/weights/chatterbox` después de la configuración:
+La instalación usa el código oficial `f5-tts`. El fine-tune español y su vocabulario se descargan aparte porque los pesos no se versionan en Git. Después de instalar las dependencias, ejecute:
 
 ```bash
-PYTHONPATH=backend backend/.venv/bin/python -c 'from huggingface_hub import snapshot_download; snapshot_download(repo_id="ResembleAI/chatterbox", allow_patterns=["t3_mtl23ls_v2.safetensors", "s3gen.pt", "ve.pt", "grapheme_mtl_merged_expanded_v1.json", "conds.pt", "Cangjie5_TC.json"], local_dir="backend/weights/chatterbox")'
+backend/.venv/bin/python scripts/download_f5_spanish.py
 ```
 
-El adaptador usa `ChatterboxMultilingualTTS.generate()` directamente con la muestra de referencia. Si solo está disponible Piper, la interfaz lo identifica como respaldo fonético y aclara que no clona la referencia. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis de herramientas y limitaciones.
+El checkpoint pesa aproximadamente 1.35 GB y queda en `backend/weights/f5-spanish`. El backend también descarga el vocoder oficial Vocos la primera vez que carga F5-TTS. En la interfaz se requiere una muestra clara de 5–12 segundos y el texto exacto que se oye en ella. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis del artículo comparativo, KikiVoice, F5-TTS y las limitaciones de calidad y licencia.
+
+En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`.
 
 ---
 

@@ -39,7 +39,7 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
         self,
         input_audio_path: str,
         output_audio_path: str,
-        payload: str = "VOICESHIELD_CHATTERBOX_V3_AUTHORIZED"
+        payload: str = "VOICESHIELD_SYNTHETIC_AUDIO_AUTHORIZED"
     ) -> bool:
         """
         Embebe la marca de agua de procedencia de forma imperceptible.
@@ -131,10 +131,10 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
 
             if detected:
                 status = "detectado"
-                payload = "CHATTERBOX_PERTH_NEURAL_WATERMARK"
+                payload = "VOICESHIELD_SYNTHETIC_AUDIO_PERTH"
                 interpretation = (
                     f"Marca de agua PerTh DETECTADA (Confianza: {score:.2f} >= 0.50). "
-                    "Se confirma que la muestra fue sintetizada por un motor equipado con firma digital de procedencia (Chatterbox/PerTh)."
+                    "Se detectó una marca de agua PerTh compatible con la firma sintética configurada por el laboratorio."
                 )
             else:
                 status = "no_detectado"

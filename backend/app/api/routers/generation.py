@@ -78,8 +78,8 @@ async def upload_voice_reference(
 @router.post("/synthesize", response_model=VoiceGenerationResponse)
 def synthesize_cloned_voice(request: VoiceGenerationRequest):
     """
-    Sintetiza directamente desde texto con el modelo TTS y, si se proporciona,
-    condiciona la voz con la muestra autorizada.
+    Sintetiza en español con F5-TTS, condicionado por una muestra autorizada
+    y la transcripción literal de esa muestra.
     """
     if not request.consent_granted:
         raise HTTPException(
@@ -87,17 +87,27 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
             detail="ACCESO DENEGADO: No se autoriza la generación sintética sin consentimiento expreso."
         )
 
+    model_available, model_message = voice_generation_service.tts_adapter.is_available()
+    if not model_available:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=model_message)
+
     try:
         response = voice_generation_service.generate_voice(
             text=request.text,
             reference_audio_id=request.reference_audio_id,
+            reference_transcript=request.reference_transcript,
             consent_granted=request.consent_granted,
             speaker_alias=request.speaker_alias,
-            apply_perth_watermark=request.apply_perth_watermark
+            apply_perth_watermark=request.apply_perth_watermark,
+            cfg_strength=request.cfg_strength,
+            nfe_step=request.nfe_step,
+            speed=request.speed,
         )
         return response
     except PermissionError as pe:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(pe))
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

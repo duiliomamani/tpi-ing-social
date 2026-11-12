@@ -7,7 +7,7 @@ from app.adapters.gemma_adapter import GemmaAdapter
 from app.adapters.whisper_adapter import FasterWhisperAdapter
 from app.adapters.aasist_adapter import AASISTAdapter
 from app.adapters.perth_adapter import PerThWatermarkAdapter
-from app.adapters.chatterbox_adapter import ChatterboxAdapter
+from app.services.voice_generation_service import voice_generation_service
 
 router = APIRouter(prefix="/health", tags=["Salud del Sistema y Modelos"])
 
@@ -17,13 +17,13 @@ def get_system_health():
     whisper = FasterWhisperAdapter()
     aasist = AASISTAdapter()
     perth = PerThWatermarkAdapter()
-    chatterbox = ChatterboxAdapter()
+    f5_tts = voice_generation_service.tts_adapter
 
     g_ok, g_msg = gemma.is_available()
     w_ok, w_msg = whisper.is_available()
     a_ok, a_msg = aasist.is_available()
     p_ok, p_msg = perth.is_available()
-    c_ok, c_msg = chatterbox.is_available()
+    f_ok, f_msg = f5_tts.is_available()
 
     device_name = "CPU"
     if torch.backends.mps.is_available():
@@ -56,10 +56,10 @@ def get_system_health():
             status_message=p_msg,
             device="CPU"
         ),
-        "chatterbox_tts": ModelStatus(
-            name=chatterbox.engine_name,
-            available=c_ok,
-            status_message=c_msg,
+        "f5_tts": ModelStatus(
+            name=f5_tts.engine_name,
+            available=f_ok,
+            status_message=f_msg,
             device=device_name
         )
     }

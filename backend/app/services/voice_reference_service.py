@@ -289,7 +289,7 @@ class VoiceReferenceService:
             "language": metadata_result.get("language") or settings.WHISPER_LANGUAGE,
             "language_probability": float(metadata_result.get("language_probability") or 0.0),
             "transcription_time_ms": round((time.time() - started_at) * 1000, 2),
-            "engine": source_result.get("engine", "faster-whisper"),
+            "engine": metadata_result.get("engine", "faster-whisper"),
         }
 
 

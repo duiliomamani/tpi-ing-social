@@ -37,9 +37,20 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
+  }, [activeTab]);
+
   return (
     <div className="min-h-screen flex flex-col justify-between bg-black text-slate-100">
       <div>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-cyan-400 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-black"
+        >
+          Ir al contenido principal
+        </a>
         <Navbar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -51,7 +62,7 @@ export default function Home() {
           }}
         />
 
-        <main className="mx-auto max-w-7xl px-4 py-8">
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none">
           {activeTab === "dashboard" && (
             <DashboardTab health={health} onNavigate={setActiveTab} />
           )}

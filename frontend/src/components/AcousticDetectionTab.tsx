@@ -4,19 +4,13 @@ import React, { useState } from "react";
 import {
   Activity,
   Upload,
-  Mic,
-  Square,
-  AlertCircle,
-  CheckCircle,
-  HelpCircle,
   Fingerprint,
   Info,
-  Clock,
   Layers,
   ArrowRight
 } from "lucide-react";
 import { AudioAnalysisResponse } from "@/lib/types";
-import { analyzeAudioSample, analyzeUploadedAudio, getAudioUrl } from "@/lib/api";
+import { analyzeAudioSample, analyzeUploadedAudio } from "@/lib/api";
 import { WaveformSpectrogram } from "./WaveformSpectrogram";
 import { AudioPlayer } from "./AudioPlayer";
 
@@ -37,12 +31,15 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AudioAnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [playbackTime, setPlaybackTime] = useState(0);
 
   // Analyze a reference sample or a clone generated in this session.
   const handleAnalyzePreloaded = async () => {
     try {
       setIsAnalyzing(true);
       setErrorMessage(null);
+      setAnalysisResult(null);
+      setPlaybackTime(0);
       const res = await analyzeAudioSample(selectedSample);
       setAnalysisResult(res);
     } catch (err: any) {
@@ -54,13 +51,16 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
 
   // Upload external file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
+    input.value = "";
 
     try {
       setIsAnalyzing(true);
       setErrorMessage(null);
       setAnalysisResult(null);
+      setPlaybackTime(0);
       const res = await analyzeUploadedAudio(file);
       setAnalysisResult(res);
     } catch (err: any) {
@@ -78,7 +78,7 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
           <Activity className="h-4 w-4" />
           <span>Módulo de Detección Acústica y Procedencia</span>
         </div>
-        <h2 className="text-2xl font-black text-white">Análisis Forense de Audio Sintético</h2>
+        <h2 className="text-2xl font-black text-white">Análisis Acústico y de Procedencia</h2>
         <p className="text-xs text-slate-400 mt-1">
           Extracción espectro-temporal y clasificación mediante la red neuronal AASIST y verificación
           de marca de agua imperceptible PerTh.
@@ -101,12 +101,13 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
             </label>
             <select
               value={selectedSample}
+              disabled={isAnalyzing}
               onChange={(e) => {
                 setSelectedSample(e.target.value);
                 setAnalysisResult(null);
                 setErrorMessage(null);
               }}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none disabled:opacity-50"
             >
               {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
                 <option value={initialSampleName}>Clon generado en esta sesión</option>
@@ -148,16 +149,16 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
             </p>
           </div>
 
-          <label className="flex items-center justify-center space-x-2 rounded-lg border border-slate-700 bg-slate-800/80 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 cursor-pointer transition">
+          <label className={`flex items-center justify-center space-x-2 rounded-lg border border-slate-700 bg-slate-800/80 py-2 text-xs font-semibold text-slate-200 transition ${isAnalyzing ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-slate-700"}`}>
             <Upload className="h-4 w-4 text-cyan-400" />
             <span>Subir audio</span>
-            <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} className="hidden" />
+            <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} disabled={isAnalyzing} className="hidden" />
           </label>
         </div>
       </div>
 
       {errorMessage && (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-950/20 p-3 text-xs text-rose-300">
+        <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/20 p-3 text-xs text-rose-300">
           {errorMessage}
         </div>
       )}
@@ -254,13 +255,17 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
               <WaveformSpectrogram
                 visualization={analysisResult.visualization}
                 duration={analysisResult.visualization.duration}
+                currentTime={playbackTime}
               />
             </div>
             <div className="lg:col-span-5">
               <AudioPlayer
-                audioUrl={`/api/audio/${analysisResult.filename}`}
+                audioUrl={analysisResult.filename}
                 isSynthetic={analysisResult.acoustic_detection.verdict === "Evidencia de síntesis"}
                 creatorModel={analysisResult.acoustic_detection.model_name}
+                sampleRate={analysisResult.visualization.sample_rate}
+                channels={analysisResult.visualization.channels}
+                onTimeUpdate={(current) => setPlaybackTime(current)}
                 title={`Evidencia Evaluada: ${analysisResult.filename}`}
               />
             </div>

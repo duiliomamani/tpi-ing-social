@@ -387,6 +387,8 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
               <AudioPlayer
                 audioUrl={sourceInfo.audio_url || recordedBlobUrl || undefined}
                 isSynthetic={false}
+                sampleRate={sourceInfo.sample_rate}
+                channels={sourceInfo.channels}
                 title="Escuchar y seleccionar desde la grabación"
                 onTimeUpdate={(current, total) => {
                   setSourcePlaybackTime(current);
@@ -491,6 +493,8 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
                   <AudioPlayer
                     audioUrl={referenceInfo?.audio_url || recordedBlobUrl}
                     isSynthetic={false}
+                    sampleRate={referenceInfo.sample_rate}
+                    channels={referenceInfo.channels}
                     title="Revisar recorte seleccionado"
                   />
                 </div>
@@ -678,6 +682,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
                 audioUrl={generationResult.audio_url}
                 isSynthetic={true}
                 creatorModel={generationResult.creator_model}
+                sampleRate={generationResult.sample_rate}
                 title="Audio Sintético Generado (Clon de Voz)"
               />
 

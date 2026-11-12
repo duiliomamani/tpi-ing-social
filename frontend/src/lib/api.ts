@@ -9,7 +9,7 @@ import {
   ExperimentResult
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/+$/, "");
 
 async function responseErrorMessage(response: Response, fallback: string): Promise<string> {
   const error = await response.json().catch(() => null);
@@ -87,7 +87,7 @@ export async function uploadVoiceReference(formData: FormData): Promise<any> {
 }
 
 export async function analyzeAudioSample(sampleName: string): Promise<AudioAnalysisResponse> {
-  const res = await fetch(`${API_BASE}/detection/analyze-sample/${sampleName}`);
+  const res = await fetch(`${API_BASE}/detection/analyze-sample/${encodeURIComponent(sampleName)}`);
   if (!res.ok) throw new Error(await responseErrorMessage(res, "Error analizando muestra de audio"));
   return res.json();
 }
@@ -171,6 +171,6 @@ export function getAudioUrl(filename: string): string {
   ) {
     return filename;
   }
-  const cleanName = filename.replace(/^\/api\/audio\//, "");
-  return `http://localhost:8000/api/audio/${cleanName}`;
+  const cleanName = filename.replace(/^\/?api\/audio\//, "");
+  return `${API_BASE}/audio/${encodeURIComponent(cleanName)}`;
 }

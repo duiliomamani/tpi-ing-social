@@ -24,6 +24,7 @@ export interface VoiceGenerationResponse {
   filename: string;
   audio_url: string;
   duration_seconds: number;
+  sample_rate: number;
   creator_model: string;
   is_synthetic: boolean;
   watermark_embedded: boolean;

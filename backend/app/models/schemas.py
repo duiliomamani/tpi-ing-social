@@ -71,6 +71,7 @@ class VoiceGenerationResponse(BaseModel):
     filename: str
     audio_url: str
     duration_seconds: float
+    sample_rate: int
     creator_model: str
     is_synthetic: bool
     watermark_embedded: bool

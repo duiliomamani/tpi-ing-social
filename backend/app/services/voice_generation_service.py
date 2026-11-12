@@ -72,6 +72,7 @@ class VoiceGenerationService:
             filename=filename,
             audio_url=f"/api/audio/{filename}",
             duration_seconds=result["duration_seconds"],
+            sample_rate=result.get("sample_rate", settings.TARGET_SAMPLE_RATE),
             creator_model=result["creator_model"],
             is_synthetic=True,
             watermark_embedded=result["watermark_embedded"],

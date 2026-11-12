@@ -147,6 +147,8 @@ def transcribe_voice_reference(request: VoiceReferenceTranscriptionRequest):
         result = voice_reference_service.transcribe_and_prepare(
             request.reference_audio_id,
             str(reference_path),
+            clip_start_seconds=request.clip_start_seconds,
+            clip_end_seconds=request.clip_end_seconds,
         )
     except RuntimeError as exc:
         raise HTTPException(

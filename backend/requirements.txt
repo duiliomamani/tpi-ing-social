@@ -10,6 +10,8 @@ soundfile>=0.12.1
 librosa>=0.10.1
 torch>=2.2.0
 torchaudio>=2.2.0
+# faster-whisper 1.2.1 still passes metadata_errors to av.open; PyAV 19 removed it.
+av>=11,<19
 f5-tts==1.1.22
 faster-whisper>=1.0.0
 pytest>=8.0.0

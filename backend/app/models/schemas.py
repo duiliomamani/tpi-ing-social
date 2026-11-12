@@ -46,6 +46,8 @@ class VoiceReferenceTranscriptionRequest(BaseModel):
         description="ID del audio de referencia cargado",
     )
     consent_granted: bool = Field(..., description="Consentimiento para procesar la muestra de voz")
+    clip_start_seconds: Optional[float] = Field(None, ge=0, description="Inicio del recorte manual en segundos")
+    clip_end_seconds: Optional[float] = Field(None, gt=0, description="Fin del recorte manual en segundos")
 
 class VoiceReferenceTranscriptionResponse(BaseModel):
     source_audio_id: str

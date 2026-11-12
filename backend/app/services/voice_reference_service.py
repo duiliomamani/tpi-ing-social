@@ -159,7 +159,13 @@ class VoiceReferenceService:
             "channels": int(info.channels),
         }
 
-    def transcribe_and_prepare(self, source_audio_id: str, source_path: str) -> Dict[str, Any]:
+    def transcribe_and_prepare(
+        self,
+        source_audio_id: str,
+        source_path: str,
+        clip_start_seconds: Optional[float] = None,
+        clip_end_seconds: Optional[float] = None,
+    ) -> Dict[str, Any]:
         started_at = time.time()
         source_info = sf.info(source_path)
         source_duration = float(source_info.duration)
@@ -171,36 +177,68 @@ class VoiceReferenceService:
         if source_duration < 1.0:
             raise ValueError("La grabación debe contener al menos un segundo de audio.")
 
-        source_result = transcription_service.transcribe_audio(
-            source_path,
-            language=settings.WHISPER_LANGUAGE,
-            beam_size=1,
-            word_timestamps=source_duration > self.MAX_CLIP_SECONDS,
-        )
-        error = self._result_error(source_result)
-        if error:
-            raise RuntimeError(error)
+        if (clip_start_seconds is None) != (clip_end_seconds is None):
+            raise ValueError("Indique tanto el inicio como el fin del recorte manual.")
 
-        source_transcript = str(source_result.get("transcript", "")).strip()
-        if not source_transcript:
-            raise ValueError("Whisper no detectó voz transcribible en la grabación.")
-
-        reference_audio_id = source_audio_id
-        reference_transcript = source_transcript
+        manual_selection = clip_start_seconds is not None and clip_end_seconds is not None
+        source_result: Optional[Dict[str, Any]] = None
+        reference_result: Dict[str, Any]
+        source_transcript = ""
         clip_start = 0.0
         clip_end = source_duration
+        reference_audio_id = source_audio_id
         clip_info = {
             "duration_seconds": round(source_duration, 2),
             "sample_rate": int(source_info.samplerate),
             "channels": int(source_info.channels),
         }
 
-        if source_duration > self.MAX_CLIP_SECONDS:
+        if manual_selection:
+            clip_start = float(clip_start_seconds)
+            clip_end = float(clip_end_seconds)
+            clip_duration = clip_end - clip_start
+            if clip_start < 0 or clip_end > source_duration or clip_duration <= 0:
+                raise ValueError("El recorte debe estar dentro de los límites de la grabación.")
+            if not self.MIN_CLIP_SECONDS <= clip_duration <= self.MAX_CLIP_SECONDS:
+                raise ValueError("Seleccione un fragmento de voz de entre 5 y 12 segundos.")
+
+            reference_audio_id = f"ref_{uuid.uuid4().hex[:10]}"
+            reference_path = settings.UPLOADS_DIR / f"{reference_audio_id}.wav"
+            try:
+                clip_info = self._extract_clip(source_path, str(reference_path), clip_start, clip_end)
+                reference_result = transcription_service.transcribe_audio(
+                    str(reference_path),
+                    language=settings.WHISPER_LANGUAGE,
+                    beam_size=1,
+                )
+                error = self._result_error(reference_result)
+                if error:
+                    raise RuntimeError(error)
+            except Exception:
+                if reference_path.exists():
+                    reference_path.unlink()
+                raise
+        elif source_duration > self.MAX_CLIP_SECONDS:
+            # Keep automatic selection for API clients that do not provide explicit bounds.
+            source_result = transcription_service.transcribe_audio(
+                source_path,
+                language=settings.WHISPER_LANGUAGE,
+                beam_size=1,
+                word_timestamps=True,
+            )
+            error = self._result_error(source_result)
+            if error:
+                raise RuntimeError(error)
+
+            source_transcript = str(source_result.get("transcript", "")).strip()
+            if not source_transcript:
+                raise ValueError("Whisper no detectó voz transcribible en la grabación.")
+
             candidates = self._candidate_windows(source_result.get("segments", []), source_duration)
             if not candidates:
                 raise ValueError(
-                    "Whisper transcribió la grabación, pero no encontró un tramo continuo de voz "
-                    "de 5–12 s. Cargue un recorte corto y vuelva a intentarlo."
+                    "No se encontró un tramo continuo de voz de 5–12 s. "
+                    "Seleccione manualmente el inicio y el fin del recorte."
                 )
 
             clip_start, clip_end, _ = max(candidates, key=lambda candidate: candidate[2])
@@ -216,13 +254,25 @@ class VoiceReferenceService:
                 error = self._result_error(reference_result)
                 if error:
                     raise RuntimeError(error)
-                reference_transcript = str(reference_result.get("transcript", "")).strip()
-                if not reference_transcript:
-                    raise ValueError("No se pudo transcribir el fragmento elegido para F5-TTS.")
             except Exception:
                 if reference_path.exists():
                     reference_path.unlink()
                 raise
+        else:
+            reference_result = transcription_service.transcribe_audio(
+                source_path,
+                language=settings.WHISPER_LANGUAGE,
+                beam_size=1,
+            )
+            error = self._result_error(reference_result)
+            if error:
+                raise RuntimeError(error)
+            source_transcript = str(reference_result.get("transcript", "")).strip()
+
+        reference_transcript = str(reference_result.get("transcript", "")).strip()
+        if not reference_transcript:
+            raise ValueError("Whisper no detectó voz transcribible en el fragmento seleccionado.")
+        metadata_result = source_result or reference_result
 
         return {
             "source_audio_id": source_audio_id,
@@ -236,8 +286,8 @@ class VoiceReferenceService:
             "channels": clip_info["channels"],
             "clip_start_seconds": round(clip_start, 2),
             "clip_end_seconds": round(clip_end, 2),
-            "language": source_result.get("language") or settings.WHISPER_LANGUAGE,
-            "language_probability": float(source_result.get("language_probability") or 0.0),
+            "language": metadata_result.get("language") or settings.WHISPER_LANGUAGE,
+            "language_probability": float(metadata_result.get("language_probability") or 0.0),
             "transcription_time_ms": round((time.time() - started_at) * 1000, 2),
             "engine": source_result.get("engine", "faster-whisper"),
         }

@@ -27,9 +27,13 @@ export const GenerationLabTab: React.FC = () => {
   // Reference Audio
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [sourceReferenceId, setSourceReferenceId] = useState<string | null>(null);
+  const [sourceInfo, setSourceInfo] = useState<any>(null);
   const [referenceInfo, setReferenceInfo] = useState<any>(null);
   const [referenceTranscript, setReferenceTranscript] = useState("");
   const [sourceTranscript, setSourceTranscript] = useState("");
+  const [clipStartSeconds, setClipStartSeconds] = useState(0);
+  const [clipEndSeconds, setClipEndSeconds] = useState(8);
+  const [sourcePlaybackTime, setSourcePlaybackTime] = useState(0);
   const [transcriptionInfo, setTranscriptionInfo] = useState<VoiceReferenceTranscriptionResponse | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
@@ -49,6 +53,41 @@ export const GenerationLabTab: React.FC = () => {
   const [isTranscribingReference, setIsTranscribingReference] = useState(false);
   const [generationResult, setGenerationResult] = useState<VoiceGenerationResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const sourceDurationSeconds = Number(sourceInfo?.duration_seconds || 0);
+  const selectedClipDuration = clipEndSeconds - clipStartSeconds;
+  const selectedClipIsValid =
+    clipStartSeconds >= 0 &&
+    clipEndSeconds <= sourceDurationSeconds &&
+    selectedClipDuration >= 5 &&
+    selectedClipDuration <= 12;
+
+  const clearPreparedClip = () => {
+    setReferenceId(null);
+    setReferenceInfo(null);
+    setReferenceTranscript("");
+    setSourceTranscript("");
+    setTranscriptionInfo(null);
+  };
+
+  const handleUploadedReference = async (res: any) => {
+    setReferenceId(null);
+    setSourceReferenceId(res.reference_id);
+    setSourceInfo(res);
+    setReferenceInfo(null);
+    setReferenceTranscript("");
+    setSourceTranscript("");
+    setTranscriptionInfo(null);
+    setClipStartSeconds(0);
+    setClipEndSeconds(Math.min(8, res.duration_seconds));
+    setSourcePlaybackTime(0);
+    setGenerationResult(null);
+
+    // Short references are ready to transcribe directly. Long recordings wait
+    // for the user to select the exact excerpt from the player below.
+    if (res.duration_seconds <= 12) {
+      await transcribeReference(res.reference_id);
+    }
+  };
 
   // Start Mic Recording
   const startRecording = async () => {
@@ -78,13 +117,7 @@ export const GenerationLabTab: React.FC = () => {
         formData.append("consent_granted", "true");
         try {
           const res = await uploadVoiceReference(formData);
-          setReferenceId(res.reference_id);
-          setSourceReferenceId(res.reference_id);
-          setReferenceInfo(res);
-          setReferenceTranscript("");
-          setSourceTranscript("");
-          setTranscriptionInfo(null);
-          await transcribeReference(res.reference_id);
+          await handleUploadedReference(res);
         } catch (err: any) {
           setErrorMessage(err.message);
         }
@@ -124,20 +157,18 @@ export const GenerationLabTab: React.FC = () => {
     try {
       setErrorMessage(null);
       const res = await uploadVoiceReference(formData);
-      setReferenceId(res.reference_id);
-      setSourceReferenceId(res.reference_id);
-      setReferenceInfo(res);
-      setReferenceTranscript("");
-      setSourceTranscript("");
-      setTranscriptionInfo(null);
       setRecordedBlobUrl(URL.createObjectURL(file));
-      await transcribeReference(res.reference_id);
+      await handleUploadedReference(res);
     } catch (err: any) {
       setErrorMessage(err.message);
     }
   };
 
-  const transcribeReference = async (sourceAudioId: string) => {
+  const transcribeReference = async (
+    sourceAudioId: string,
+    clipStart?: number,
+    clipEnd?: number
+  ) => {
     if (!consentGranted) {
       setErrorMessage("Cargue una referencia autorizada antes de transcribirla.");
       return;
@@ -146,7 +177,12 @@ export const GenerationLabTab: React.FC = () => {
     try {
       setIsTranscribingReference(true);
       setErrorMessage(null);
-      const result = await transcribeVoiceReference(sourceAudioId, consentGranted);
+      const result = await transcribeVoiceReference(
+        sourceAudioId,
+        consentGranted,
+        clipStart,
+        clipEnd
+      );
       setReferenceId(result.reference_audio_id);
       setReferenceInfo({
         reference_id: result.reference_audio_id,
@@ -171,6 +207,17 @@ export const GenerationLabTab: React.FC = () => {
       setErrorMessage("Cargue una grabación autorizada antes de transcribirla.");
       return;
     }
+
+    if (sourceInfo?.duration_seconds > 12) {
+      const selectedDuration = clipEndSeconds - clipStartSeconds;
+      if (selectedDuration < 5 || selectedDuration > 12) {
+        setErrorMessage("Seleccione un fragmento de entre 5 y 12 segundos.");
+        return;
+      }
+      await transcribeReference(sourceReferenceId, clipStartSeconds, clipEndSeconds);
+      return;
+    }
+
     await transcribeReference(sourceReferenceId);
   };
 
@@ -321,12 +368,111 @@ export const GenerationLabTab: React.FC = () => {
             </label>
           </div>
 
-          {/* Reference Status Details */}
+          {/* Long source audio and manual clip selection */}
+          {sourceInfo && sourceDurationSeconds > 12 && (
+            <div className="space-y-3 rounded-lg border border-cyan-500/30 bg-cyan-950/10 p-3">
+              <div>
+                <div className="text-xs font-semibold text-cyan-300">Grabación fuente · {sourceDurationSeconds.toFixed(1)} s</div>
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Escuchá la grabación, marcá el inicio y el final del pasaje que mejor represente la voz. Solo ese recorte se transcribe y se envía a F5-TTS.
+                </p>
+              </div>
+              <AudioPlayer
+                audioUrl={sourceInfo.audio_url || recordedBlobUrl || undefined}
+                isSynthetic={false}
+                title="Escuchar y seleccionar desde la grabación"
+                onTimeUpdate={(current, total) => {
+                  setSourcePlaybackTime(current);
+                  if (total > 0 && Math.abs(total - sourceDurationSeconds) > 1) {
+                    setSourceInfo((currentInfo: any) => ({ ...currentInfo, duration_seconds: total }));
+                  }
+                }}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const maxStart = Math.max(0, sourceDurationSeconds - 5);
+                    const nextStart = Math.min(sourcePlaybackTime, maxStart);
+                    clearPreparedClip();
+                    setClipStartSeconds(nextStart);
+                    setClipEndSeconds((currentEnd) =>
+                      Math.min(sourceDurationSeconds, Math.max(nextStart + 5, Math.min(currentEnd, nextStart + 12)))
+                    );
+                  }}
+                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-[10px] font-semibold text-slate-200 hover:border-cyan-500/50"
+                >
+                  Marcar inicio en {sourcePlaybackTime.toFixed(1)} s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const minEnd = clipStartSeconds + 5;
+                    const maxEnd = Math.min(sourceDurationSeconds, clipStartSeconds + 12);
+                    clearPreparedClip();
+                    setClipEndSeconds(Math.min(maxEnd, Math.max(minEnd, sourcePlaybackTime)));
+                  }}
+                  className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-[10px] font-semibold text-slate-200 hover:border-cyan-500/50"
+                >
+                  Marcar fin en {sourcePlaybackTime.toFixed(1)} s
+                </button>
+              </div>
+              <label className="block space-y-1 text-[10px] text-slate-400">
+                <span>Inicio: {clipStartSeconds.toFixed(1)} s</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0, sourceDurationSeconds - 5)}
+                  step={0.1}
+                  value={clipStartSeconds}
+                  onChange={(event) => {
+                    const nextStart = Number(event.target.value);
+                    clearPreparedClip();
+                    setClipStartSeconds(nextStart);
+                    setClipEndSeconds((currentEnd) =>
+                      Math.min(sourceDurationSeconds, Math.max(nextStart + 5, Math.min(currentEnd, nextStart + 12)))
+                    );
+                  }}
+                  className="w-full accent-cyan-400"
+                />
+              </label>
+              <label className="block space-y-1 text-[10px] text-slate-400">
+                <span>Fin: {clipEndSeconds.toFixed(1)} s</span>
+                <input
+                  type="range"
+                  min={Math.min(sourceDurationSeconds, clipStartSeconds + 5)}
+                  max={Math.min(sourceDurationSeconds, clipStartSeconds + 12)}
+                  step={0.1}
+                  value={Math.min(clipEndSeconds, Math.min(sourceDurationSeconds, clipStartSeconds + 12))}
+                  onChange={(event) => {
+                    clearPreparedClip();
+                    setClipEndSeconds(Number(event.target.value));
+                  }}
+                  className="w-full accent-cyan-400"
+                />
+              </label>
+              <div className="flex items-center justify-between gap-3">
+                <span className={`text-[10px] ${selectedClipIsValid ? "text-emerald-300" : "text-amber-300"}`}>
+                  Recorte seleccionado: {selectedClipDuration.toFixed(1)} s {selectedClipIsValid ? "· listo" : "· debe durar 5–12 s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleTranscribeReference}
+                  disabled={!consentGranted || !selectedClipIsValid || isGenerating || isTranscribingReference}
+                  className="shrink-0 rounded border border-cyan-500/50 bg-cyan-900/50 px-3 py-2 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
+                >
+                  {isTranscribingReference ? "Creando y transcribiendo…" : "Crear recorte y transcribir"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Prepared F5 reference */}
           {referenceInfo && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs space-y-1">
               <div className="flex items-center text-emerald-400 font-semibold space-x-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Muestra de Voz Cargada</span>
+                <span>Recorte de referencia listo para F5-TTS</span>
               </div>
               <div className="text-slate-300 grid grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
                 <span>Duración: {referenceInfo.duration_seconds}s</span>
@@ -338,7 +484,7 @@ export const GenerationLabTab: React.FC = () => {
                   <AudioPlayer
                     audioUrl={referenceInfo?.audio_url || recordedBlobUrl}
                     isSynthetic={false}
-                    title={referenceInfo.duration_seconds > 12 ? "Grabación fuente para transcripción" : "Fragmento de referencia preparado para F5-TTS"}
+                    title="Revisar recorte seleccionado"
                   />
                 </div>
               )}
@@ -351,14 +497,16 @@ export const GenerationLabTab: React.FC = () => {
                 <label htmlFor="reference-transcript" className="text-xs font-semibold text-slate-300">
                   Transcripción del fragmento para F5-TTS:
                 </label>
-                <button
-                  type="button"
-                  onClick={handleTranscribeReference}
-                  disabled={!consentGranted || !sourceReferenceId || isGenerating || isTranscribingReference}
-                  className="rounded border border-cyan-500/40 bg-cyan-950/40 px-2.5 py-1 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-900/50 disabled:opacity-40"
-                >
-                  {isTranscribingReference ? "Transcribiendo y preparando clip…" : "Repetir transcripción / preparar clip"}
-                </button>
+                {sourceDurationSeconds <= 12 && (
+                  <button
+                    type="button"
+                    onClick={handleTranscribeReference}
+                    disabled={!consentGranted || !sourceReferenceId || isGenerating || isTranscribingReference}
+                    className="rounded border border-cyan-500/40 bg-cyan-950/40 px-2.5 py-1 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-900/50 disabled:opacity-40"
+                  >
+                    {isTranscribingReference ? "Transcribiendo…" : "Volver a transcribir"}
+                  </button>
+                )}
               </div>
               <textarea
                 id="reference-transcript"
@@ -370,14 +518,14 @@ export const GenerationLabTab: React.FC = () => {
                 placeholder="Genere un borrador local y corrija aquí la transcripción..."
               />
               <p className="text-[10px] text-slate-500">
-                Al cargar, Whisper transcribe la grabación completa en CPU local y prepara un fragmento de 5–12 s para F5. La primera carga puede tardar. Escuche el clip y revise nombres y palabras antes de generar.
+                Whisper transcribe localmente el recorte seleccionado. Corregí aquí nombres o palabras que no haya reconocido bien antes de generar.
               </p>
               {transcriptionInfo && (
                 <p className="text-[10px] text-cyan-300/80">
                   {transcriptionInfo.engine} · {transcriptionInfo.transcription_time_ms} ms · idioma {transcriptionInfo.language} ({Math.round(transcriptionInfo.language_probability * 100)}%). Clip: {transcriptionInfo.clip_start_seconds}–{transcriptionInfo.clip_end_seconds} s de {transcriptionInfo.source_duration_seconds} s.
                 </p>
               )}
-              {sourceTranscript && (
+              {sourceTranscript && sourceDurationSeconds <= 12 && (
                 <details className="rounded border border-slate-800 bg-slate-950/50 p-2">
                   <summary className="cursor-pointer text-[10px] font-semibold text-slate-400">
                     Ver transcripción completa de la grabación ({transcriptionInfo?.source_duration_seconds}s)

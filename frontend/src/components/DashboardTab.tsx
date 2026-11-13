@@ -5,11 +5,16 @@ import {
   Activity,
   ArrowRight,
   AudioWaveform,
+  Bot,
   CheckCircle2,
   Cpu,
+  Info,
   Layers,
   Mic,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  TriangleAlert,
+  UserRound
 } from "lucide-react";
 import { SystemHealthResponse } from "@/lib/types";
 
@@ -62,6 +67,76 @@ const STATUS_STYLE = {
   pending: { dot: "bg-slate-500", text: "Consultando", label: "text-slate-400" }
 };
 
+const VOICE_INTENT_ROWS = [
+  {
+    key: "synthetic",
+    label: "Voz generada por IA",
+    detail: "Autenticidad acústica",
+    icon: Bot,
+    cells: [
+      {
+        intent: "Llamada normal",
+        title: "Uso legítimo posible",
+        description: "Un asistente virtual puede hablar con voz sintética sin que exista una intención fraudulenta.",
+        evidence: "Cobertura pendiente: falta un control sintético legítimo en el catálogo.",
+        tone: "cyan",
+      },
+      {
+        intent: "Pedido sospechoso",
+        title: "Engaño con IA",
+        description: "Una voz clonada suplanta a un directivo o familiar y presiona para aprobar una transferencia.",
+        evidence: "Escenarios A y B · catalogados como sintéticos y maliciosos.",
+        tone: "rose",
+      },
+    ],
+  },
+  {
+    key: "human",
+    label: "Voz humana",
+    detail: "Persona real",
+    icon: UserRound,
+    cells: [
+      {
+        intent: "Llamada normal",
+        title: "Comunicación legítima",
+        description: "Una persona coordina una tarea cotidiana sin urgencia, pedido sensible ni evasión de controles.",
+        evidence: "Escenario C · catalogado como voz humana legítima.",
+        tone: "emerald",
+      },
+      {
+        intent: "Pedido sospechoso",
+        title: "Engaño sin IA",
+        description: "Una persona se hace pasar por soporte y solicita un código OTP/MFA o una acción sensible.",
+        evidence: "Escenario D · catalogado como voz humana maliciosa.",
+        tone: "amber",
+      },
+    ],
+  },
+] as const;
+
+const MATRIX_TONES = {
+  cyan: {
+    card: "border-cyan-500/25 bg-cyan-950/20",
+    badge: "bg-cyan-500/15 text-cyan-200",
+    dot: "bg-cyan-400",
+  },
+  rose: {
+    card: "border-rose-500/30 bg-rose-950/20",
+    badge: "bg-rose-500/15 text-rose-200",
+    dot: "bg-rose-400",
+  },
+  emerald: {
+    card: "border-emerald-500/25 bg-emerald-950/20",
+    badge: "bg-emerald-500/15 text-emerald-200",
+    dot: "bg-emerald-400",
+  },
+  amber: {
+    card: "border-amber-500/25 bg-amber-950/20",
+    badge: "bg-amber-500/15 text-amber-200",
+    dot: "bg-amber-400",
+  },
+} as const;
+
 export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }) => {
   return (
     <div className="space-y-8">
@@ -101,6 +176,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
           </div>
         </div>
       </section>
+
+      <VoiceIntentMatrix />
 
       <section className="space-y-4" aria-labelledby="workflow-heading">
         <div>
@@ -189,3 +266,79 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
     </div>
   );
 };
+
+function VoiceIntentMatrix() {
+  return (
+    <section className="space-y-4" aria-labelledby="voice-intent-heading">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Modelo de análisis</p>
+          <h2 id="voice-intent-heading" className="mt-1 text-lg font-bold text-white">La voz y la intención son dos preguntas distintas</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
+            Que una voz parezca sintética no demuestra fraude; que suene humana tampoco garantiza legitimidad.
+          </p>
+        </div>
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-[10px] font-semibold text-slate-300">
+          <span className="h-2 w-2 rounded-full bg-cyan-400" />
+          Catálogo actual: 3 de 4 combinaciones
+        </div>
+      </div>
+
+      <div role="table" aria-label="Matriz de tipo de voz e intención de la llamada" className="space-y-3">
+        <div role="row" className="hidden grid-cols-[164px_repeat(2,minmax(0,1fr))] gap-3 md:grid">
+          <div role="columnheader" aria-label="Tipo de voz" />
+          <div role="columnheader" className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-950/30 px-4 py-3 text-xs font-bold text-emerald-200">
+            <ShieldCheck className="h-4 w-4" />
+            Llamada normal
+          </div>
+          <div role="columnheader" className="flex items-center gap-2 rounded-lg border border-rose-500/25 bg-rose-950/30 px-4 py-3 text-xs font-bold text-rose-200">
+            <TriangleAlert className="h-4 w-4" />
+            Pedido sospechoso
+          </div>
+        </div>
+
+        {VOICE_INTENT_ROWS.map((row) => {
+          const RowIcon = row.icon;
+          return (
+            <div key={row.key} role="rowgroup" className="grid grid-cols-1 gap-3 md:grid-cols-[164px_repeat(2,minmax(0,1fr))]">
+              <div role="rowheader" className="hidden flex-col justify-center rounded-xl border border-slate-800 bg-cyber-850 p-4 md:flex">
+                <RowIcon className="h-6 w-6 text-cyan-300" />
+                <span className="mt-3 text-sm font-bold text-white">{row.label}</span>
+                <span className="mt-1 text-[10px] text-slate-500">{row.detail}</span>
+              </div>
+              {row.cells.map((cell) => {
+                const tone = MATRIX_TONES[cell.tone];
+                return (
+                  <article key={`${row.key}-${cell.intent}`} role="cell" className={`rounded-xl border p-4 sm:p-5 ${tone.card}`}>
+                    <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-300">
+                        <RowIcon className="h-3.5 w-3.5 text-cyan-300" />
+                        {row.label}
+                      </span>
+                      <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${tone.badge}`}>{cell.intent}</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${tone.dot}`} aria-hidden="true" />
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-white">{cell.title}</h3>
+                        <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{cell.description}</p>
+                        <p className="mt-3 border-t border-white/10 pt-2.5 text-[10px] leading-relaxed text-slate-400">{cell.evidence}</p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/15 px-3 py-2.5 text-[11px] leading-relaxed text-slate-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+        <p>
+          <strong className="text-white">Cómo leerla:</strong> AASIST aporta evidencia acústica sobre síntesis; el análisis semántico busca señales de manipulación. La decisión defensiva combina ambas con verificación de identidad por un canal independiente.
+        </p>
+      </div>
+    </section>
+  );
+}

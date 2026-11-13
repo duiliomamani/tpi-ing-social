@@ -75,6 +75,7 @@ export interface LabAudioSample {
   caller_phone_display: string;
   audio_file: string;
   audio_url: string;
+  audio_available: boolean;
   duration_seconds: number;
   ground_truth_voice: "synthetic" | "human";
   ground_truth_intent: "malicious" | "legitimate";

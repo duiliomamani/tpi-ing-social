@@ -79,13 +79,18 @@ SCENARIOS_DATA: List[Dict] = [
 ]
 
 class ScenarioService:
+    @staticmethod
+    def _to_lab_sample(scenario: Dict) -> LabAudioSample:
+        audio_path = settings.AUDIO_SAMPLES_DIR / scenario["audio_file"]
+        return LabAudioSample(**scenario, audio_available=audio_path.is_file())
+
     def get_all_scenarios(self) -> List[LabAudioSample]:
-        return [LabAudioSample(**s) for s in SCENARIOS_DATA]
+        return [self._to_lab_sample(s) for s in SCENARIOS_DATA]
 
     def get_scenario_by_id(self, scenario_id: str) -> Optional[LabAudioSample]:
         for s in SCENARIOS_DATA:
             if s["id"] == scenario_id or s["code"] == scenario_id:
-                return LabAudioSample(**s)
+                return self._to_lab_sample(s)
         return None
 
 scenario_service = ScenarioService()

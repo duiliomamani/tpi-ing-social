@@ -24,6 +24,8 @@ import { AudioFilePreflight, formatAudioFileSize, formatDuration, inspectAudioFi
 
 interface GenerationLabTabProps {
   isActive?: boolean;
+  initialText?: string;
+  initialTextVersion?: number;
   onAnalyzeGeneratedAudio?: (filename: string, transcript: string) => void;
   onGenerationComplete?: (result: VoiceGenerationResponse, context: {
     text: string;
@@ -38,6 +40,8 @@ interface GenerationLabTabProps {
 
 export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   isActive = true,
+  initialText,
+  initialTextVersion = 0,
   onAnalyzeGeneratedAudio,
   onGenerationComplete,
   onBusyChange
@@ -71,6 +75,10 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   const [cfgStrength, setCfgStrength] = useState(2.0);
   const [nfeStep, setNfeStep] = useState(16);
   const [generationSpeed, setGenerationSpeed] = useState(1.0);
+
+  useEffect(() => {
+    if (initialText?.trim()) setTextToSynthesize(initialText);
+  }, [initialText, initialTextVersion]);
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -709,22 +717,40 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
               />
               <span className="block text-[10px] text-slate-500">Fuerza de guía documentada por F5-TTS.</span>
             </label>
-            <label className="space-y-2 text-xs text-slate-300">
+            <div className="space-y-2 text-xs text-slate-300" role="group" aria-label="Pasos de inferencia">
               <span className="flex items-center justify-between">
                 <span>Pasos de inferencia</span>
                 <strong className="font-mono text-cyan-300">{nfeStep}</strong>
               </span>
-              <input
-                type="range"
-                min="16"
-                max="64"
-                step="4"
-                value={nfeStep}
-                onChange={(e) => setNfeStep(Number(e.target.value))}
-                className="w-full accent-cyan-400"
-              />
-              <span className="block text-[10px] text-slate-500">16 pasos reducen el cálculo para la demo local; más pasos tardan más.</span>
-            </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { value: 16, label: "Demo rápida" },
+                  { value: 24, label: "Intermedio" },
+                  { value: 32, label: "Más cálculo" },
+                  { value: 48, label: "Experimental" },
+                ].map((option) => {
+                  const isSelected = nfeStep === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={isSelected}
+                      disabled={isGenerating}
+                      onClick={() => setNfeStep(option.value)}
+                      className={`rounded-md border px-2 py-1.5 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isSelected
+                          ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100"
+                          : "border-slate-700 bg-slate-950/60 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                      }`}
+                    >
+                      <span className="block font-mono text-[11px]">{option.value} pasos</span>
+                      <span className="block text-[9px]">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="block text-[10px] text-slate-500">Más pasos requieren más cálculo y tardan más; no aseguran una voz más natural.</span>
+            </div>
             <label className="space-y-2 text-xs text-slate-300">
               <span className="flex items-center justify-between">
                 <span>Velocidad</span>

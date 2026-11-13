@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { DashboardTab } from "@/components/DashboardTab";
 import { GenerationLabTab } from "@/components/GenerationLabTab";
@@ -14,6 +14,7 @@ import {
   AudioAnalysisResponse,
   DemoSessionReport,
   ExperimentResult,
+  LabAudioSample,
   MultilayerRiskAssessmentResponse,
   SystemHealthResponse,
   VoiceGenerationResponse,
@@ -28,6 +29,15 @@ export default function Home() {
   const [systemOnline, setSystemOnline] = useState(false);
   const [presentationOpen, setPresentationOpen] = useState(false);
   const [demoAudio, setDemoAudio] = useState<{ filename: string; transcript: string } | null>(null);
+  const [riskScenarioRun, setRiskScenarioRun] = useState<{
+    requestId: number;
+    sampleName: string;
+    transcript: string;
+    verifiedIdentity: boolean;
+  } | null>(null);
+  const [generationPrompt, setGenerationPrompt] = useState<string | undefined>(undefined);
+  const [generationPromptVersion, setGenerationPromptVersion] = useState(0);
+  const riskRunSequence = useRef(0);
   const [sessionReport, setSessionReport] = useState<DemoSessionReport>(() => ({
     schema_version: 1,
     exported_at: new Date().toISOString(),
@@ -113,6 +123,26 @@ export default function Home() {
     updateSessionReport({ experiment: { captured_at: new Date().toISOString(), result } });
   };
 
+  const launchScenarioEvaluation = (sample: LabAudioSample) => {
+    riskRunSequence.current += 1;
+    setDemoAudio({ filename: sample.audio_file, transcript: sample.transcript });
+    setRiskScenarioRun({
+      requestId: riskRunSequence.current,
+      sampleName: sample.audio_file,
+      transcript: sample.transcript,
+      verifiedIdentity: sample.default_verification_state,
+    });
+    navigateToTab("confidence");
+  };
+
+  const createSyntheticControl = () => {
+    setGenerationPrompt(
+      "Hola, te llamo para confirmar la reunión de seguimiento del proyecto. Revisá el calendario cuando puedas y confirmame si te queda bien. Gracias."
+    );
+    setGenerationPromptVersion((version) => version + 1);
+    navigateToTab("generation");
+  };
+
   const reportAvailable = Boolean(
     sessionReport.generated_voice || sessionReport.acoustic_analysis ||
     sessionReport.risk_assessment || sessionReport.experiment
@@ -160,6 +190,7 @@ export default function Home() {
           localOperationBusy={localOperationBusy}
           onDataPurged={() => {
             setDemoAudio(null);
+            setRiskScenarioRun(null);
             setSessionReport({ schema_version: 1, exported_at: new Date().toISOString() });
             setActiveTab("dashboard");
             setVisitedTabs(["dashboard"]);
@@ -171,7 +202,13 @@ export default function Home() {
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none">
           {visitedTabs.includes("dashboard") && (
             <div hidden={activeTab !== "dashboard"}>
-              <DashboardTab key={`dashboard-${sessionVersion}`} health={health} onNavigate={navigateToTab} />
+              <DashboardTab
+                key={`dashboard-${sessionVersion}`}
+                health={health}
+                onNavigate={navigateToTab}
+                onRunScenario={launchScenarioEvaluation}
+                onCreateControl={createSyntheticControl}
+              />
             </div>
           )}
           {visitedTabs.includes("generation") && (
@@ -179,6 +216,8 @@ export default function Home() {
               <GenerationLabTab
                 key={`generation-${sessionVersion}`}
                 isActive={activeTab === "generation"}
+                initialText={generationPrompt}
+                initialTextVersion={generationPromptVersion}
                 onBusyChange={handleLocalOperationBusy}
                 onGenerationComplete={captureGeneration}
                 onAnalyzeGeneratedAudio={(filename, transcript) => {
@@ -209,6 +248,7 @@ export default function Home() {
                 key={`confidence-${sessionVersion}`}
                 initialSampleName={demoAudio?.filename}
                 initialTranscript={demoAudio?.transcript}
+                autoRunScenario={riskScenarioRun}
                 onAssessmentComplete={captureRiskAssessment}
               />
             </div>

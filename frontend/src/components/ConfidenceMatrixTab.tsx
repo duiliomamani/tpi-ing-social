@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -29,18 +29,23 @@ import {
 interface ConfidenceMatrixTabProps {
   initialSampleName?: string | null;
   initialTranscript?: string;
+  autoRunScenario?: {
+    requestId: number;
+    sampleName: string;
+    transcript: string;
+    verifiedIdentity: boolean;
+  } | null;
   onAssessmentComplete?: (result: MultilayerRiskAssessmentResponse) => void;
 }
-
-const REFERENCE_SAMPLE_NAMES = ["scenario_a.wav", "scenario_b.wav", "scenario_c.wav", "scenario_d.wav"];
 
 export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
   initialSampleName,
   initialTranscript = "",
+  autoRunScenario = null,
   onAssessmentComplete
 }) => {
   const [samples, setSamples] = useState<LabAudioSample[]>([]);
-  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
+  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "");
   const [verifiedIdentity, setVerifiedIdentity] = useState<boolean>(false);
   const [customTranscript, setCustomTranscript] = useState<string>(initialTranscript);
 
@@ -48,10 +53,21 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
   const [riskAssessment, setRiskAssessment] = useState<MultilayerRiskAssessmentResponse | null>(null);
   const [socialAnalysis, setSocialAnalysis] = useState<SocialEngineeringAnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const lastAutoRunId = useRef<number | null>(null);
 
   useEffect(() => {
-    fetchLabSamples().then(setSamples).catch(console.error);
-  }, []);
+    fetchLabSamples()
+      .then((result) => {
+        setSamples(result);
+        if (initialSampleName) return;
+        const firstAvailableSample = result.find((sample) => sample.audio_available);
+        if (firstAvailableSample) {
+          setSelectedSample(firstAvailableSample.audio_file);
+          setCustomTranscript(firstAvailableSample.transcript);
+        }
+      })
+      .catch(console.error);
+  }, [initialSampleName]);
 
   useEffect(() => {
     if (!initialSampleName) return;
@@ -67,7 +83,11 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
     setErrorMessage(null);
   };
 
-  const handleEvaluate = async () => {
+  const handleEvaluate = async (
+    sampleName = selectedSample,
+    identityVerified = verifiedIdentity,
+    transcript = customTranscript
+  ) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -76,14 +96,14 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
 
       // 1. Comprehensive Multilayer Risk
       const riskRes = await evaluateComprehensiveRisk(
-        selectedSample,
-        verifiedIdentity,
-        customTranscript.trim() || undefined
+        sampleName,
+        identityVerified,
+        transcript.trim() || undefined
       );
       setRiskAssessment(riskRes);
       setSocialAnalysis(riskRes.social_analysis || null);
       onAssessmentComplete?.(riskRes);
-      if (!customTranscript.trim() && riskRes.social_analysis?.transcript) {
+      if (!transcript.trim() && riskRes.social_analysis?.transcript) {
         setCustomTranscript(riskRes.social_analysis.transcript);
       }
     } catch (err: any) {
@@ -92,6 +112,29 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoRunScenario || lastAutoRunId.current === autoRunScenario.requestId) return;
+    lastAutoRunId.current = autoRunScenario.requestId;
+    setSelectedSample(autoRunScenario.sampleName);
+    setVerifiedIdentity(autoRunScenario.verifiedIdentity);
+    setCustomTranscript(autoRunScenario.transcript);
+    void handleEvaluate(
+      autoRunScenario.sampleName,
+      autoRunScenario.verifiedIdentity,
+      autoRunScenario.transcript
+    );
+  }, [autoRunScenario, handleEvaluate]);
+
+  const selectedCatalogSample = samples.find((sample) => sample.audio_file === selectedSample);
+  const selectedSessionAudio = Boolean(
+    initialSampleName &&
+    selectedSample === initialSampleName &&
+    !selectedCatalogSample
+  );
+  const selectedSampleAvailable = selectedCatalogSample
+    ? selectedCatalogSample.audio_available
+    : selectedSessionAudio;
 
   return (
     <div className="space-y-6">
@@ -127,13 +170,15 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
               }}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
             >
-              {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
+              <option value="" disabled>Seleccioná un audio disponible</option>
+              {initialSampleName && !selectedCatalogSample && (
                 <option value={initialSampleName}>Audio analizado en esta sesión</option>
               )}
-              <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Martín Silva)</option>
-              <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Lucas Morales)</option>
-              <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Sofía Benítez)</option>
-              <option value="scenario_d.wav">Muestra D — Solicitud de OTP con voz humana</option>
+              {samples.map((sample) => (
+                <option key={sample.code} value={sample.audio_file} disabled={!sample.audio_available}>
+                  {sample.title}{sample.audio_available ? "" : " · audio no disponible"}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -175,8 +220,8 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
           {/* Action Button */}
           <div className="flex flex-col justify-end">
             <button
-              onClick={handleEvaluate}
-              disabled={isLoading}
+              onClick={() => void handleEvaluate()}
+              disabled={isLoading || !selectedSample || !selectedSampleAvailable}
               className="w-full flex items-center justify-center space-x-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 py-2.5 text-xs font-bold text-black hover:from-cyan-400 hover:to-blue-500 disabled:opacity-40 transition shadow-lg shadow-cyan-900/30"
             >
               {isLoading ? (
@@ -194,9 +239,15 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
           </div>
         </div>
 
-        {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && selectedSample === initialSampleName && (
+        {selectedSessionAudio && (
           <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-xs text-cyan-100">
             Se evaluará <strong>{initialSampleName}</strong>. El texto de la sesión se carga como contexto semántico y podés editarlo antes de ejecutar la matriz.
+          </div>
+        )}
+
+        {!selectedSampleAvailable && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-100">
+            No hay un audio disponible para evaluar. Cargá uno desde Análisis acústico o prepará una muestra autorizada en Generación de voz.
           </div>
         )}
 

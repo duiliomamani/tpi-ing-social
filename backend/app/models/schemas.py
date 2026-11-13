@@ -103,6 +103,7 @@ class LabAudioSample(BaseModel):
     caller_phone_display: str
     audio_file: str
     audio_url: str
+    audio_available: bool = True
     duration_seconds: float
     ground_truth_voice: Literal["synthetic", "human"]
     ground_truth_intent: Literal["malicious", "legitimate"]

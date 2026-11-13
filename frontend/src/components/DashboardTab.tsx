@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -11,32 +11,38 @@ import {
   Info,
   Layers,
   Mic,
+  Play,
   Sparkles,
   ShieldCheck,
   TriangleAlert,
+  type LucideIcon,
+  Upload,
   UserRound
 } from "lucide-react";
-import { SystemHealthResponse } from "@/lib/types";
+import { LabAudioSample, SystemHealthResponse } from "@/lib/types";
+import { fetchLabSamples } from "@/lib/api";
 
 interface DashboardTabProps {
   health: SystemHealthResponse | null;
   onNavigate: (tab: string) => void;
+  onRunScenario: (sample: LabAudioSample) => void;
+  onCreateControl: () => void;
 }
 
 const WORKFLOW_STEPS = [
   {
     number: "01",
-    title: "Generar con autorización",
-    description: "Cargá una referencia propia, revisá la transcripción y generá un audio de prueba.",
+    title: "Preparar una muestra",
+    description: "Elegí un caso disponible o generá una voz sintética con una referencia autorizada.",
     destination: "generation",
-    action: "Abrir generación",
+    action: "Preparar audio",
     icon: Mic,
     color: "cyan"
   },
   {
     number: "02",
-    title: "Analizar la evidencia",
-    description: "Medí el audio con AASIST y buscá la marca PerTh. También podés usar una muestra de control.",
+    title: "Analizar la señal",
+    description: "Ejecutá AASIST y PerTh sobre el mismo audio para revisar evidencia de síntesis y procedencia.",
     destination: "detection",
     action: "Abrir análisis",
     icon: AudioWaveform,
@@ -44,12 +50,21 @@ const WORKFLOW_STEPS = [
   },
   {
     number: "03",
-    title: "Evaluar el riesgo completo",
-    description: "Combiná señales acústicas, contenido y verificación independiente de identidad.",
+    title: "Evaluar el caso",
+    description: "Revisá la transcripción, analizá la intención y registrá la verificación por un canal independiente.",
     destination: "confidence",
-    action: "Abrir matriz",
+    action: "Abrir evaluación",
     icon: Layers,
     color: "emerald"
+  },
+  {
+    number: "04",
+    title: "Comparar y documentar",
+    description: "Medí la robustez ante ruido, compresión y filtro telefónico; exportá el informe de sesión.",
+    destination: "experiments",
+    action: "Abrir benchmark",
+    icon: Activity,
+    color: "amber"
   }
 ];
 
@@ -67,7 +82,25 @@ const STATUS_STYLE = {
   pending: { dot: "bg-slate-500", text: "Consultando", label: "text-slate-400" }
 };
 
-const VOICE_INTENT_ROWS = [
+interface VoiceIntentCell {
+  intent: string;
+  title: string;
+  description: string;
+  evidence: string;
+  scenarioCodes: string[];
+  needsSyntheticControl: boolean;
+  tone: "cyan" | "rose" | "emerald" | "amber";
+}
+
+interface VoiceIntentRow {
+  key: string;
+  label: string;
+  detail: string;
+  icon: LucideIcon;
+  cells: VoiceIntentCell[];
+}
+
+const VOICE_INTENT_ROWS: VoiceIntentRow[] = [
   {
     key: "synthetic",
     label: "Voz generada por IA",
@@ -78,7 +111,9 @@ const VOICE_INTENT_ROWS = [
         intent: "Llamada normal",
         title: "Uso legítimo posible",
         description: "Un asistente virtual puede hablar con voz sintética sin que exista una intención fraudulenta.",
-        evidence: "Cobertura pendiente: falta un control sintético legítimo en el catálogo.",
+        evidence: "No hay una grabación de control en el catálogo; podés crearla con una referencia autorizada.",
+        scenarioCodes: [],
+        needsSyntheticControl: true,
         tone: "cyan",
       },
       {
@@ -86,6 +121,8 @@ const VOICE_INTENT_ROWS = [
         title: "Engaño con IA",
         description: "Una voz clonada suplanta a un directivo o familiar y presiona para aprobar una transferencia.",
         evidence: "Escenarios A y B · catalogados como sintéticos y maliciosos.",
+        scenarioCodes: ["scenario_a", "scenario_b"],
+        needsSyntheticControl: false,
         tone: "rose",
       },
     ],
@@ -101,6 +138,8 @@ const VOICE_INTENT_ROWS = [
         title: "Comunicación legítima",
         description: "Una persona coordina una tarea cotidiana sin urgencia, pedido sensible ni evasión de controles.",
         evidence: "Escenario C · catalogado como voz humana legítima.",
+        scenarioCodes: ["scenario_c"],
+        needsSyntheticControl: false,
         tone: "emerald",
       },
       {
@@ -108,11 +147,13 @@ const VOICE_INTENT_ROWS = [
         title: "Engaño sin IA",
         description: "Una persona se hace pasar por soporte y solicita un código OTP/MFA o una acción sensible.",
         evidence: "Escenario D · catalogado como voz humana maliciosa.",
+        scenarioCodes: ["scenario_d"],
+        needsSyntheticControl: false,
         tone: "amber",
       },
     ],
   },
-] as const;
+];
 
 const MATRIX_TONES = {
   cyan: {
@@ -137,7 +178,7 @@ const MATRIX_TONES = {
   },
 } as const;
 
-export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }) => {
+export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, onRunScenario, onCreateControl }) => {
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyber-850 via-cyber-900 to-black p-6 shadow-2xl sm:p-8">
@@ -177,14 +218,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
         </div>
       </section>
 
-      <VoiceIntentMatrix />
+      <VoiceIntentMatrix
+        onNavigate={onNavigate}
+        onRunScenario={onRunScenario}
+        onCreateControl={onCreateControl}
+      />
 
       <section className="space-y-4" aria-labelledby="workflow-heading">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Recorrido recomendado</p>
           <h2 id="workflow-heading" className="mt-1 text-lg font-bold text-white">De la muestra a una decisión defensiva</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {WORKFLOW_STEPS.map((step) => {
             const Icon = step.icon;
             const colorClasses = step.color === "amber"
@@ -267,20 +312,54 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate }
   );
 };
 
-function VoiceIntentMatrix() {
+interface VoiceIntentMatrixProps {
+  onNavigate: (tab: string) => void;
+  onRunScenario: (sample: LabAudioSample) => void;
+  onCreateControl: () => void;
+}
+
+function VoiceIntentMatrix({ onNavigate, onRunScenario, onCreateControl }: VoiceIntentMatrixProps) {
+  const [samples, setSamples] = useState<LabAudioSample[]>([]);
+  const [samplesLoading, setSamplesLoading] = useState(true);
+  const [samplesError, setSamplesError] = useState(false);
+
+  useEffect(() => {
+    let isCurrent = true;
+    fetchLabSamples()
+      .then((result) => {
+        if (!isCurrent) return;
+        setSamples(result);
+        setSamplesError(false);
+      })
+      .catch(() => {
+        if (isCurrent) setSamplesError(true);
+      })
+      .finally(() => {
+        if (isCurrent) setSamplesLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  const readyCellCount = VOICE_INTENT_ROWS.flatMap((row) => row.cells).filter((cell) =>
+    cell.scenarioCodes.some((code) => samples.some((sample) => sample.code === code && sample.audio_available))
+  ).length;
+
   return (
     <section className="space-y-4" aria-labelledby="voice-intent-heading">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Modelo de análisis</p>
-          <h2 id="voice-intent-heading" className="mt-1 text-lg font-bold text-white">La voz y la intención son dos preguntas distintas</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Matriz de escenarios</p>
+          <h2 id="voice-intent-heading" className="mt-1 text-lg font-bold text-white">Tipo de voz × propósito de la llamada</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
-            Que una voz parezca sintética no demuestra fraude; que suene humana tampoco garantiza legitimidad.
+            Ejecutá un caso para analizar audio, procedencia, contenido y verificación. La matriz organiza escenarios; la evaluación entrega evidencia, no una certeza automática.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-[10px] font-semibold text-slate-300">
-          <span className="h-2 w-2 rounded-full bg-cyan-400" />
-          Catálogo actual: 3 de 4 combinaciones
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-[10px] font-semibold text-slate-300" aria-live="polite">
+          <span className={`h-2 w-2 rounded-full ${samplesError ? "bg-amber-400" : "bg-cyan-400"}`} />
+          {samplesLoading ? "Consultando muestras…" : samplesError ? "No se pudo consultar el catálogo" : `Muestras listas: ${readyCellCount} de 4 cuadrantes`}
         </div>
       </div>
 
@@ -308,6 +387,9 @@ function VoiceIntentMatrix() {
               </div>
               {row.cells.map((cell) => {
                 const tone = MATRIX_TONES[cell.tone];
+                const scenarioCodes = cell.scenarioCodes;
+                const cellSamples = samples.filter((sample) => scenarioCodes.includes(sample.code));
+                const hasUnavailableSample = cellSamples.some((sample) => !sample.audio_available);
                 return (
                   <article key={`${row.key}-${cell.intent}`} role="cell" className={`rounded-xl border p-4 sm:p-5 ${tone.card}`}>
                     <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
@@ -319,12 +401,64 @@ function VoiceIntentMatrix() {
                     </div>
                     <div className="flex items-start gap-3">
                       <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${tone.dot}`} aria-hidden="true" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-bold text-white">{cell.title}</h3>
                         <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{cell.description}</p>
                         <p className="mt-3 border-t border-white/10 pt-2.5 text-[10px] leading-relaxed text-slate-400">{cell.evidence}</p>
                       </div>
                     </div>
+
+                    {scenarioCodes.length > 0 && (
+                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+                        {samplesLoading ? (
+                          <span className="text-[10px] text-slate-500">Consultando disponibilidad del audio…</span>
+                        ) : samplesError ? (
+                          <span className="text-[10px] text-amber-200">No se pudo comprobar si el audio está en este equipo.</span>
+                        ) : cellSamples.length === 0 ? (
+                          <span className="text-[10px] text-slate-500">No hay fichas para este escenario en el catálogo.</span>
+                        ) : (
+                          cellSamples.map((sample) => sample.audio_available ? (
+                            <button
+                              key={sample.code}
+                              type="button"
+                              onClick={() => onRunScenario(sample)}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-[10px] font-bold text-cyan-100 transition hover:bg-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                            >
+                              <Play className="h-3 w-3" />
+                              Ejecutar muestra {sample.code.slice(-1).toUpperCase()}
+                            </button>
+                          ) : (
+                            <span key={sample.code} className="rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-[10px] text-slate-400">
+                              Muestra {sample.code.slice(-1).toUpperCase()} no está en este equipo
+                            </span>
+                          ))
+                        )}
+                        {(samplesError || hasUnavailableSample || cellSamples.length === 0) && (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate("detection")}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-2.5 py-1.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-500/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                          >
+                            <Upload className="h-3 w-3" />
+                            Cargar audio equivalente
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {cell.needsSyntheticControl && (
+                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+                        <button
+                          type="button"
+                          onClick={onCreateControl}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-[10px] font-bold text-cyan-100 transition hover:bg-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                        >
+                          <Mic className="h-3 w-3" />
+                          Crear control sintético
+                        </button>
+                        <span className="text-[10px] text-slate-500">Requiere consentimiento y referencia propia.</span>
+                      </div>
+                    )}
                   </article>
                 );
               })}
@@ -336,7 +470,7 @@ function VoiceIntentMatrix() {
       <div className="flex items-start gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/15 px-3 py-2.5 text-[11px] leading-relaxed text-slate-300">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
         <p>
-          <strong className="text-white">Cómo leerla:</strong> AASIST aporta evidencia acústica sobre síntesis; el análisis semántico busca señales de manipulación. La decisión defensiva combina ambas con verificación de identidad por un canal independiente.
+          <strong className="text-white">Protocolo:</strong> seleccioná o generá el audio, ejecutá el análisis acústico, revisá el texto y la intención, y confirmá la identidad por un canal independiente. El botón de una muestra disponible inicia directamente la evaluación multicapa.
         </p>
       </div>
     </section>

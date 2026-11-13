@@ -4,6 +4,7 @@ import soundfile as sf
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from app.core.config import settings
 from app.models.schemas import (
+    VoiceGenerationJobResponse,
     VoiceGenerationRequest,
     VoiceGenerationResponse,
     VoiceReferenceTranscriptionRequest,
@@ -11,6 +12,7 @@ from app.models.schemas import (
 )
 from app.adapters.f5_tts_adapter import GenerationInProgressError
 from app.services.voice_generation_service import voice_generation_service
+from app.services.voice_generation_job_service import voice_generation_job_service
 from app.services.audio_processing import normalize_audio_to_wav
 from app.services.voice_reference_service import voice_reference_service
 
@@ -202,4 +204,38 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error en la síntesis de audio: {str(e)}"
+        )
+
+
+@router.post(
+    "/synthesize/jobs",
+    response_model=VoiceGenerationJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_voice_generation_job(request: VoiceGenerationRequest):
+    """Start F5-TTS in a background thread and return a pollable job id."""
+    if not request.consent_granted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ACCESO DENEGADO: No se autoriza la generación sintética sin consentimiento expreso.",
+        )
+
+    model_available, model_message = voice_generation_service.tts_adapter.is_available()
+    if not model_available:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=model_message)
+
+    return voice_generation_job_service.start(request)
+
+
+@router.get(
+    "/synthesize/jobs/{job_id}",
+    response_model=VoiceGenerationJobResponse,
+)
+def get_voice_generation_job(job_id: str):
+    try:
+        return voice_generation_job_service.get(job_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró la tarea de generación; iniciá una nueva síntesis.",
         )

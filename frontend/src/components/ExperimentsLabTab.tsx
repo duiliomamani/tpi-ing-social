@@ -25,7 +25,11 @@ import {
 import { ExperimentResult } from "@/lib/types";
 import { runBenchmarkExperiment } from "@/lib/api";
 
-export const ExperimentsLabTab: React.FC = () => {
+interface ExperimentsLabTabProps {
+  onExperimentComplete?: (result: ExperimentResult) => void;
+}
+
+export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperimentComplete }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [experimentResult, setExperimentResult] = useState<ExperimentResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -36,6 +40,7 @@ export const ExperimentsLabTab: React.FC = () => {
       setErrorMessage(null);
       const res = await runBenchmarkExperiment("scenario_c.wav", "scenario_a.wav");
       setExperimentResult(res);
+      onExperimentComplete?.(res);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {

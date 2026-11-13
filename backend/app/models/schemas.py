@@ -82,6 +82,15 @@ class VoiceGenerationResponse(BaseModel):
     cloned_pitch_hz: Optional[float] = None
     pitch_correction_semitones: Optional[float] = None
 
+class VoiceGenerationJobResponse(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "completed", "failed"]
+    phase_message: str
+    created_at: str
+    updated_at: str
+    result: Optional[VoiceGenerationResponse] = None
+    error: Optional[str] = None
+
 # ==================== Lab Audio Samples ====================
 class LabAudioSample(BaseModel):
     id: str

@@ -36,6 +36,16 @@ export interface VoiceGenerationResponse {
   pitch_correction_semitones?: number;
 }
 
+export interface VoiceGenerationJobResponse {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  phase_message: string;
+  created_at: string;
+  updated_at: string;
+  result?: VoiceGenerationResponse | null;
+  error?: string | null;
+}
+
 export interface VoiceReferenceTranscriptionResponse {
   source_audio_id: string;
   reference_audio_id: string;
@@ -192,4 +202,28 @@ export interface ExperimentResult {
   }>;
   timestamp: string;
   evaluation_notes: string;
+}
+
+export interface DemoSessionReport {
+  schema_version: 1;
+  exported_at: string;
+  generated_voice?: {
+    captured_at: string;
+    result: VoiceGenerationResponse;
+    text: string;
+    reference_transcript: string;
+    speaker_alias: string;
+    parameters: { cfg_strength: number; nfe_step: number; speed: number };
+  };
+  acoustic_analysis?: {
+    captured_at: string;
+    audio_id: string;
+    filename: string;
+    acoustic_detection: AASISTDetectionResult;
+    watermark_detection: WatermarkDetectionResult;
+    overall_acoustic_summary: string;
+    visualization_summary: { sample_rate: number; duration: number; channels: number };
+  };
+  risk_assessment?: { captured_at: string; result: MultilayerRiskAssessmentResponse };
+  experiment?: { captured_at: string; result: ExperimentResult };
 }

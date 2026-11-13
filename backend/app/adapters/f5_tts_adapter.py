@@ -3,7 +3,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import librosa
 import numpy as np
@@ -212,6 +212,7 @@ class F5TTSAdapter(BaseTTSAdapter):
         cfg_strength: float = 2.0,
         nfe_step: int = 16,
         speed: float = 1.0,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         if not consent_granted:
             raise PermissionError(
@@ -238,6 +239,8 @@ class F5TTSAdapter(BaseTTSAdapter):
             )
 
         try:
+            if progress_callback:
+                progress_callback("Preparando la referencia de voz y validando la transcripción…")
             ref_profile = self._clean_reference(
                 reference_audio_path,
                 temp_clean_ref,
@@ -266,20 +269,28 @@ class F5TTSAdapter(BaseTTSAdapter):
                 "nfe_step": nfe_step,
                 "speed": speed,
             }
+            if progress_callback:
+                progress_callback(f"Inferencia F5-TTS en {self.device.upper()} · {nfe_step} pasos…")
             try:
                 inference = self.tts.infer(**infer_args)
             except RuntimeError as exc:
                 if not self._is_mps_out_of_memory(exc) or self.device != "mps":
                     raise
                 print("[F5TTSAdapter] MPS sin memoria; liberando MPS y reintentando una vez en CPU.")
+                if progress_callback:
+                    progress_callback("Memoria MPS insuficiente; liberando memoria y reintentando en CPU…")
                 exc.__traceback__ = None
                 if not self._reload_on_cpu():
                     raise RuntimeError(self._init_error or "F5-TTS no pudo recargarse en CPU.") from None
+                if progress_callback:
+                    progress_callback(f"Reintentando inferencia F5-TTS en CPU · {nfe_step} pasos…")
                 inference = self.tts.infer(**infer_args)
 
             waveform, output_sample_rate, _ = inference
             waveform = self._to_numpy(waveform)
             output_sample_rate = int(output_sample_rate)
+            if progress_callback:
+                progress_callback("Guardando el WAV y aplicando la marca de procedencia…")
             sf.write(output_path, waveform, output_sample_rate, subtype="PCM_16")
 
             watermark_embedded = False
@@ -297,6 +308,8 @@ class F5TTSAdapter(BaseTTSAdapter):
                 elif os.path.exists(watermarked_path):
                     os.remove(watermarked_path)
 
+            if progress_callback:
+                progress_callback("Midiendo el audio generado y cerrando el resultado…")
             generated_f0 = self._median_f0(waveform, output_sample_rate)
             info = sf.info(output_path)
             return {

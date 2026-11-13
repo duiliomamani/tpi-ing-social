@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Dict, Any
+from typing import Callable, Dict, Any, Optional
 from app.adapters.f5_tts_adapter import F5TTSAdapter
 from app.core.config import settings
 from app.core.database import save_audio_record
@@ -22,6 +22,7 @@ class VoiceGenerationService:
         cfg_strength: float = 2.0,
         nfe_step: int = 32,
         speed: float = 1.0,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> VoiceGenerationResponse:
         """
         Servicio de generación de voz con control ético de consentimiento y registro en BD.
@@ -51,6 +52,7 @@ class VoiceGenerationService:
             cfg_strength=cfg_strength,
             nfe_step=nfe_step,
             speed=speed,
+            progress_callback=progress_callback,
         )
 
         # Registrar en la base de datos

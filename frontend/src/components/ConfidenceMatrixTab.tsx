@@ -29,13 +29,15 @@ import {
 interface ConfidenceMatrixTabProps {
   initialSampleName?: string | null;
   initialTranscript?: string;
+  onAssessmentComplete?: (result: MultilayerRiskAssessmentResponse) => void;
 }
 
 const REFERENCE_SAMPLE_NAMES = ["scenario_a.wav", "scenario_b.wav", "scenario_c.wav", "scenario_d.wav"];
 
 export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
   initialSampleName,
-  initialTranscript = ""
+  initialTranscript = "",
+  onAssessmentComplete
 }) => {
   const [samples, setSamples] = useState<LabAudioSample[]>([]);
   const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
@@ -50,6 +52,14 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
   useEffect(() => {
     fetchLabSamples().then(setSamples).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!initialSampleName) return;
+    setSelectedSample(initialSampleName);
+    setCustomTranscript(initialTranscript);
+    setRiskAssessment(null);
+    setSocialAnalysis(null);
+  }, [initialSampleName, initialTranscript]);
 
   const clearEvaluation = () => {
     setRiskAssessment(null);
@@ -72,6 +82,7 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
       );
       setRiskAssessment(riskRes);
       setSocialAnalysis(riskRes.social_analysis || null);
+      onAssessmentComplete?.(riskRes);
       if (!customTranscript.trim() && riskRes.social_analysis?.transcript) {
         setCustomTranscript(riskRes.social_analysis.transcript);
       }

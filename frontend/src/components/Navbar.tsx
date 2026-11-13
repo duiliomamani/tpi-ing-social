@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldAlert, Presentation, Trash2 } from "lucide-react";
+import { ShieldAlert, Presentation, Trash2, FileDown } from "lucide-react";
 import { purgeLabData } from "@/lib/api";
 
 interface NavbarProps {
@@ -10,6 +10,9 @@ interface NavbarProps {
   openPresentation: () => void;
   systemOnline: boolean;
   onDataPurged: () => void;
+  reportAvailable: boolean;
+  onExportReport: () => void;
+  localOperationBusy: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,7 +20,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   openPresentation,
   systemOnline,
-  onDataPurged
+  onDataPurged,
+  reportAvailable,
+  onExportReport,
+  localOperationBusy
 }) => {
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
@@ -29,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const handlePurge = async () => {
+    if (localOperationBusy) return;
     if (confirm("¿Desea eliminar de forma segura todas las grabaciones temporales y referencias de voz generadas en la sesión?")) {
       try {
         const res = await purgeLabData();
@@ -95,6 +102,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </div>
 
+          <button
+            type="button"
+            onClick={onExportReport}
+            disabled={!reportAvailable}
+            aria-label="Descargar informe local de la sesión"
+            title={reportAvailable ? "Descargar JSON local con resultados y transcripciones de la sesión" : "Todavía no hay resultados para exportar"}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-900/60 bg-cyan-950/30 text-cyan-300 transition hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            <FileDown className="h-4 w-4" />
+          </button>
+
           {/* Guided Presentation Mode Button */}
           <button
             onClick={openPresentation}
@@ -108,9 +126,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Academic Privacy Data Purge */}
           <button
             onClick={handlePurge}
+            disabled={localOperationBusy}
             aria-label="Eliminar los datos temporales del laboratorio"
-            title="Saneamiento Ético: Eliminar datos y grabaciones temporales"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-900/50 bg-rose-950/20 text-rose-400 transition hover:bg-rose-900/40"
+            title={localOperationBusy ? "Esperá a que termine la operación de audio antes de purgar los datos" : "Saneamiento Ético: Eliminar datos y grabaciones temporales"}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-900/50 bg-rose-950/20 text-rose-400 transition hover:bg-rose-900/40 disabled:cursor-not-allowed disabled:opacity-35"
           >
             <Trash2 className="h-4 w-4" />
           </button>

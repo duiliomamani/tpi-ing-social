@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Mic,
   Square,
@@ -16,15 +16,32 @@ import {
   Clock,
   AudioWaveform
 } from "lucide-react";
-import { synthesizeVoice, transcribeVoiceReference, uploadVoiceReference, getAudioUrl } from "@/lib/api";
+import { synthesizeVoiceWithProgress, transcribeVoiceReference, uploadVoiceReference, getAudioUrl } from "@/lib/api";
 import { VoiceGenerationResponse, VoiceReferenceTranscriptionResponse } from "@/lib/types";
 import { AudioPlayer } from "./AudioPlayer";
+import { AudioABComparison } from "./AudioABComparison";
+import { AudioFilePreflight, formatAudioFileSize, formatDuration, inspectAudioFile, MAX_VOICE_SOURCE_DURATION_SECONDS } from "@/lib/audio-file";
 
 interface GenerationLabTabProps {
+  isActive?: boolean;
   onAnalyzeGeneratedAudio?: (filename: string, transcript: string) => void;
+  onGenerationComplete?: (result: VoiceGenerationResponse, context: {
+    text: string;
+    referenceTranscript: string;
+    speakerAlias: string;
+    cfgStrength: number;
+    nfeStep: number;
+    speed: number;
+  }) => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGeneratedAudio }) => {
+export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
+  isActive = true,
+  onAnalyzeGeneratedAudio,
+  onGenerationComplete,
+  onBusyChange
+}) => {
   // Consent
   const [consentGranted, setConsentGranted] = useState(false);
   const [speakerAlias, setSpeakerAlias] = useState("Participante Autorizado #1");
@@ -33,6 +50,8 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [sourceReferenceId, setSourceReferenceId] = useState<string | null>(null);
   const [sourceInfo, setSourceInfo] = useState<any>(null);
+  const [sourceFilePreflight, setSourceFilePreflight] = useState<AudioFilePreflight | null>(null);
+  const [sourceLabel, setSourceLabel] = useState("");
   const [referenceInfo, setReferenceInfo] = useState<any>(null);
   const [referenceTranscript, setReferenceTranscript] = useState("");
   const [sourceTranscript, setSourceTranscript] = useState("");
@@ -55,9 +74,14 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploadingReference, setIsUploadingReference] = useState(false);
   const [isTranscribingReference, setIsTranscribingReference] = useState(false);
   const [generationResult, setGenerationResult] = useState<VoiceGenerationResponse | null>(null);
   const [generationTranscript, setGenerationTranscript] = useState("");
+  const [generationReferenceTranscript, setGenerationReferenceTranscript] = useState("");
+  const [generationPhase, setGenerationPhase] = useState("");
+  const [generationElapsedSeconds, setGenerationElapsedSeconds] = useState(0);
+  const generationStartedAtRef = useRef<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const sourceDurationSeconds = Number(sourceInfo?.duration_seconds || 0);
   const selectedClipDuration = clipEndSeconds - clipStartSeconds;
@@ -66,6 +90,43 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
     clipEndSeconds <= sourceDurationSeconds &&
     selectedClipDuration >= 5 &&
     selectedClipDuration <= 12;
+  const isLocallyBusy = isGenerating || isUploadingReference || isTranscribingReference || isRecording;
+
+  useEffect(() => {
+    onBusyChange?.(isLocallyBusy);
+  }, [isLocallyBusy, onBusyChange]);
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
+
+  useEffect(() => {
+    if (!isGenerating) return;
+    const updateElapsed = () => {
+      const startedAt = generationStartedAtRef.current;
+      if (startedAt !== null) setGenerationElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    };
+    updateElapsed();
+    const timer = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(timer);
+  }, [isGenerating]);
+
+  useEffect(() => {
+    if (isActive || !isRecording) return;
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") recorder.stop();
+      recorder.stream.getTracks().forEach((track) => track.stop());
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setErrorMessage("La grabación se detuvo y descartó al salir del módulo.");
+  }, [isActive, isRecording]);
+
+  useEffect(() => {
+    return () => {
+      if (recordedBlobUrl?.startsWith("blob:")) URL.revokeObjectURL(recordedBlobUrl);
+    };
+  }, [recordedBlobUrl]);
 
   const clearPreparedClip = () => {
     setReferenceId(null);
@@ -75,10 +136,11 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
     setTranscriptionInfo(null);
   };
 
-  const handleUploadedReference = async (res: any) => {
+  const handleUploadedReference = async (res: any, label: string) => {
     setReferenceId(null);
     setSourceReferenceId(res.reference_id);
     setSourceInfo(res);
+    setSourceLabel(label);
     setReferenceInfo(null);
     setReferenceTranscript("");
     setSourceTranscript("");
@@ -122,10 +184,14 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
         formData.append("file", audioBlob, "mic_sample.webm");
         formData.append("consent_granted", "true");
         try {
+          setIsUploadingReference(true);
           const res = await uploadVoiceReference(formData);
-          await handleUploadedReference(res);
+          setSourceFilePreflight({ name: "Grabación del micrófono", sizeBytes: audioBlob.size, mimeType: audioBlob.type || "Audio del micrófono", durationSeconds: null });
+          await handleUploadedReference(res, "Grabación del micrófono");
         } catch (err: any) {
           setErrorMessage(err.message);
+        } finally {
+          setIsUploadingReference(false);
         }
       };
       mediaRecorderRef.current = recorder;
@@ -147,8 +213,10 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
 
   // File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
+    input.value = "";
 
     if (!consentGranted) {
       alert("Debe marcar la casilla de consentimiento expreso antes de cargar archivos de voz.");
@@ -156,17 +224,24 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("consent_granted", "true");
-
     try {
+      setIsUploadingReference(true);
       setErrorMessage(null);
+      const preflight = await inspectAudioFile(file, {
+        minDurationSeconds: 1,
+        maxDurationSeconds: MAX_VOICE_SOURCE_DURATION_SECONDS,
+      });
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("consent_granted", "true");
       const res = await uploadVoiceReference(formData);
+      setSourceFilePreflight(preflight);
       setRecordedBlobUrl(URL.createObjectURL(file));
-      await handleUploadedReference(res);
+      await handleUploadedReference(res, file.name);
     } catch (err: any) {
       setErrorMessage(err.message);
+    } finally {
+      setIsUploadingReference(false);
     }
   };
 
@@ -253,7 +328,18 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
     try {
       setIsGenerating(true);
       setErrorMessage(null);
-      const res = await synthesizeVoice({
+      generationStartedAtRef.current = Date.now();
+      setGenerationElapsedSeconds(0);
+      setGenerationPhase("En cola para el motor local F5-TTS…");
+      const generationContext = {
+        text: textToSynthesize.trim(),
+        referenceTranscript: referenceTranscript.trim(),
+        speakerAlias,
+        cfgStrength,
+        nfeStep,
+        speed: generationSpeed,
+      };
+      const res = await synthesizeVoiceWithProgress({
         text: textToSynthesize,
         reference_audio_id: referenceId,
         reference_transcript: referenceTranscript,
@@ -263,13 +349,17 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
         cfg_strength: cfgStrength,
         nfe_step: nfeStep,
         speed: generationSpeed,
-      });
+      }, setGenerationPhase);
       setGenerationResult(res);
       setGenerationTranscript(textToSynthesize.trim());
+      setGenerationReferenceTranscript(referenceTranscript.trim());
+      setGenerationPhase("Audio generado correctamente.");
+      onGenerationComplete?.(res, generationContext);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
       setIsGenerating(false);
+      generationStartedAtRef.current = null;
     }
   };
 
@@ -342,7 +432,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
             {/* Record via Mic */}
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              disabled={!consentGranted || isGenerating || isTranscribingReference}
+              disabled={!consentGranted || isGenerating || isTranscribingReference || isUploadingReference}
               className={`flex flex-col items-center justify-center rounded-lg border p-4 transition ${
                 isRecording
                   ? "border-rose-500 bg-rose-500/15 text-rose-400 animate-pulse"
@@ -359,21 +449,34 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
             {/* Upload WAV */}
             <label
               className={`flex flex-col items-center justify-center rounded-lg border border-slate-800 bg-slate-900/60 p-4 transition cursor-pointer hover:border-cyan-500/40 hover:bg-slate-800 ${
-                !consentGranted || isGenerating || isTranscribingReference ? "opacity-40 pointer-events-none" : ""
+                !consentGranted || isGenerating || isTranscribingReference || isUploadingReference ? "opacity-40 pointer-events-none" : ""
               }`}
             >
               <Upload className="h-6 w-6 mb-2 text-cyan-400" />
               <span className="text-xs font-semibold text-slate-300">Cargar Archivo de Audio</span>
-              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 / M4A / WebM · grabaciones de hasta 10 min</span>
+              <span className="text-[10px] text-slate-500 mt-1">WAV / MP3 / M4A / WebM · hasta 10 min y 100 MB</span>
               <input
                 type="file"
                 accept="audio/*,.wav,.mp3,.ogg,.m4a,.webm"
                 onChange={handleFileUpload}
-                disabled={!consentGranted || isGenerating || isTranscribingReference}
+                disabled={!consentGranted || isGenerating || isTranscribingReference || isUploadingReference}
                 className="hidden"
               />
             </label>
           </div>
+
+          {sourceFilePreflight && (
+            <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 text-[10px] text-slate-400">
+              Archivo revisado: <strong className="text-slate-200">{sourceFilePreflight.name}</strong> · {formatAudioFileSize(sourceFilePreflight.sizeBytes)} · {sourceFilePreflight.durationSeconds === null ? `${formatDuration(sourceDurationSeconds)} de audio (duración validada por el backend)` : formatDuration(sourceFilePreflight.durationSeconds)} · {sourceFilePreflight.mimeType}
+            </div>
+          )}
+
+          {isUploadingReference && (
+            <div className="flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-3 py-2 text-[11px] text-cyan-200" role="status">
+              <div className="h-3.5 w-3.5 rounded-full border-2 border-cyan-300 border-t-transparent animate-spin" />
+              <span>Validando y cargando el audio al laboratorio local…</span>
+            </div>
+          )}
 
           {/* Long source audio and manual clip selection */}
           {sourceInfo && sourceDurationSeconds > 12 && (
@@ -385,6 +488,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
                 </p>
               </div>
               <AudioPlayer
+                isActive={isActive}
                 audioUrl={sourceInfo.audio_url || recordedBlobUrl || undefined}
                 isSynthetic={false}
                 sampleRate={sourceInfo.sample_rate}
@@ -467,7 +571,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
                 <button
                   type="button"
                   onClick={handleTranscribeReference}
-                  disabled={!consentGranted || !selectedClipIsValid || isGenerating || isTranscribingReference}
+                  disabled={!consentGranted || !selectedClipIsValid || isGenerating || isTranscribingReference || isUploadingReference}
                   className="shrink-0 rounded border border-cyan-500/50 bg-cyan-900/50 px-3 py-2 text-[10px] font-bold text-cyan-100 hover:bg-cyan-800 disabled:opacity-40"
                 >
                   {isTranscribingReference ? "Creando y transcribiendo…" : "Crear recorte y transcribir"}
@@ -491,6 +595,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
               {(referenceInfo?.audio_url || recordedBlobUrl) && (
                 <div className="pt-2">
                   <AudioPlayer
+                    isActive={isActive}
                     audioUrl={referenceInfo?.audio_url || recordedBlobUrl}
                     isSynthetic={false}
                     sampleRate={referenceInfo.sample_rate}
@@ -554,11 +659,19 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
 
           {/* Text Input to Synthesize */}
           <div className="space-y-2 pt-2">
-            <label className="text-xs font-semibold text-slate-300 flex justify-between">
-              <span>Texto en Español a Sintetizar:</span>
-              <span className="text-[10px] text-slate-500">{textToSynthesize.length} caracteres</span>
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="text-to-synthesize" className="text-xs font-semibold text-slate-300">Texto en Español a Sintetizar:</label>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-500">{textToSynthesize.length} caracteres</span>
+                {referenceTranscript.trim() && (
+                  <button type="button" onClick={() => setTextToSynthesize(referenceTranscript.trim())} className="text-[10px] font-semibold text-cyan-300 hover:text-cyan-200">
+                    Usar texto de referencia
+                  </button>
+                )}
+              </div>
+            </div>
             <textarea
+              id="text-to-synthesize"
               rows={3}
               value={textToSynthesize}
               onChange={(e) => setTextToSynthesize(e.target.value)}
@@ -566,6 +679,18 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
               placeholder="Escriba el texto que la voz clonada debe pronunciar..."
             />
           </div>
+
+          {isGenerating && (
+            <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3" role="status" aria-live="polite">
+              <div className="flex items-center gap-2 text-xs font-semibold text-cyan-200">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>{generationPhase || "Esperando avance del motor local…"}</span>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Tiempo transcurrido: {formatDuration(generationElapsedSeconds)} · F5-TTS no informa un porcentaje fiable durante la inferencia.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
             <label className="space-y-2 text-xs text-slate-300">
@@ -623,6 +748,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
             disabled={
               isGenerating ||
               isTranscribingReference ||
+              isUploadingReference ||
               !consentGranted ||
               !referenceId ||
               referenceInfo?.duration_seconds > 12 ||
@@ -633,7 +759,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
             {isGenerating ? (
               <>
                 <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                <span>Generando voz con F5-TTS...</span>
+                <span>{generationPhase || "Generando voz con F5-TTS…"}</span>
               </>
             ) : (
               <>
@@ -678,13 +804,25 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({ onAnalyzeGen
               </div>
 
               {/* Synthetic Audio Player */}
-              <AudioPlayer
-                audioUrl={generationResult.audio_url}
-                isSynthetic={true}
-                creatorModel={generationResult.creator_model}
-                sampleRate={generationResult.sample_rate}
-                title="Audio Sintético Generado (Clon de Voz)"
-              />
+              {referenceInfo?.audio_url ? (
+                <AudioABComparison
+                  referenceUrl={referenceInfo.audio_url}
+                  generatedUrl={generationResult.audio_url}
+                  referenceTitle={sourceLabel ? `${sourceLabel} · recorte de referencia` : "Referencia de voz"}
+                  generatedTitle={generationResult.filename}
+                  sameText={generationReferenceTranscript === generationTranscript}
+                  isActive={isActive}
+                />
+              ) : (
+                <AudioPlayer
+                  isActive={isActive}
+                  audioUrl={generationResult.audio_url}
+                  isSynthetic={true}
+                  creatorModel={generationResult.creator_model}
+                  sampleRate={generationResult.sample_rate}
+                  title="Audio Sintético Generado (Clon de Voz)"
+                />
+              )}
 
               {/* Perceptual & Forensic Evaluation Metrics */}
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-2 text-xs">

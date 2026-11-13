@@ -1,6 +1,7 @@
 import {
   SystemHealthResponse,
   VoiceGenerationResponse,
+  VoiceGenerationJobResponse,
   VoiceReferenceTranscriptionResponse,
   LabAudioSample,
   AudioAnalysisResponse,
@@ -72,6 +73,48 @@ export async function synthesizeVoice(data: {
     throw new Error(err.detail || "Error en la generación sintética");
   }
   return res.json();
+}
+
+export async function synthesizeVoiceWithProgress(
+  data: {
+    text: string;
+    reference_audio_id: string;
+    reference_transcript: string;
+    consent_granted: boolean;
+    speaker_alias?: string;
+    apply_perth_watermark?: boolean;
+    cfg_strength?: number;
+    nfe_step?: number;
+    speed?: number;
+  },
+  onPhase: (message: string) => void
+): Promise<VoiceGenerationResponse> {
+  const startResponse = await fetch(`${API_BASE}/generation/synthesize/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!startResponse.ok) {
+    throw new Error(await responseErrorMessage(startResponse, "No se pudo iniciar la generación local"));
+  }
+
+  let job: VoiceGenerationJobResponse = await startResponse.json();
+  onPhase(job.phase_message);
+  while (job.status === "queued" || job.status === "running") {
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    const statusResponse = await fetch(`${API_BASE}/generation/synthesize/jobs/${encodeURIComponent(job.job_id)}`);
+    if (!statusResponse.ok) {
+      throw new Error(await responseErrorMessage(statusResponse, "Se perdió el estado de la generación local"));
+    }
+    job = await statusResponse.json();
+    onPhase(job.phase_message);
+  }
+
+  if (job.status === "failed") {
+    throw new Error(job.error || "La generación de voz no pudo completarse.");
+  }
+  if (!job.result) throw new Error("La tarea terminó sin devolver un archivo de audio.");
+  return job.result;
 }
 
 export async function uploadVoiceReference(formData: FormData): Promise<any> {

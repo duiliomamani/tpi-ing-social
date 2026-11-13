@@ -6,6 +6,7 @@ import { getAudioUrl } from "@/lib/api";
 
 interface AudioPlayerProps {
   audioUrl?: string;
+  isActive?: boolean;
   isSynthetic?: boolean;
   academicBanner?: string;
   creatorModel?: string;
@@ -17,6 +18,7 @@ interface AudioPlayerProps {
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   audioUrl,
+  isActive = true,
   isSynthetic = false,
   academicBanner = "AUDIO SINTÉTICO — DEMOSTRACIÓN ACADÉMICA",
   creatorModel,
@@ -42,6 +44,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setDuration(0);
     setPlayerError(null);
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (isActive) return;
+    audioRef.current?.pause();
+  }, [isActive]);
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;

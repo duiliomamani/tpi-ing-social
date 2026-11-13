@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   Upload,
@@ -11,27 +11,42 @@ import {
 } from "lucide-react";
 import { AudioAnalysisResponse } from "@/lib/types";
 import { analyzeAudioSample, analyzeUploadedAudio } from "@/lib/api";
+import { AudioFilePreflight, formatAudioFileSize, inspectAudioFile } from "@/lib/audio-file";
 import { WaveformSpectrogram } from "./WaveformSpectrogram";
 import { AudioPlayer } from "./AudioPlayer";
 
 interface AcousticDetectionTabProps {
+  isActive?: boolean;
   initialSampleName?: string | null;
   initialTranscript?: string;
   onEvaluateAudio?: (filename: string, transcript: string) => void;
+  onAnalysisComplete?: (result: AudioAnalysisResponse) => void;
 }
 
 const REFERENCE_SAMPLE_NAMES = ["scenario_a.wav", "scenario_b.wav", "scenario_c.wav", "scenario_d.wav"];
 
 export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
+  isActive = true,
   initialSampleName,
   initialTranscript = "",
-  onEvaluateAudio
+  onEvaluateAudio,
+  onAnalysisComplete
 }) => {
   const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AudioAnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playbackTime, setPlaybackTime] = useState(0);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState<AudioFilePreflight | null>(null);
+
+  useEffect(() => {
+    if (!initialSampleName || selectedSample === initialSampleName) return;
+    setSelectedSample(initialSampleName);
+    setAnalysisResult(null);
+    setErrorMessage(null);
+    setPlaybackTime(0);
+    setUploadedFileInfo(null);
+  }, [initialSampleName, selectedSample]);
 
   // Analyze a reference sample or a clone generated in this session.
   const handleAnalyzePreloaded = async () => {
@@ -40,8 +55,10 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
       setErrorMessage(null);
       setAnalysisResult(null);
       setPlaybackTime(0);
+      setUploadedFileInfo(null);
       const res = await analyzeAudioSample(selectedSample);
       setAnalysisResult(res);
+      onAnalysisComplete?.(res);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -61,8 +78,11 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
       setErrorMessage(null);
       setAnalysisResult(null);
       setPlaybackTime(0);
+      const fileInfo = await inspectAudioFile(file);
+      setUploadedFileInfo(fileInfo);
       const res = await analyzeUploadedAudio(file);
       setAnalysisResult(res);
+      onAnalysisComplete?.(res);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -106,6 +126,7 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
                 setSelectedSample(e.target.value);
                 setAnalysisResult(null);
                 setErrorMessage(null);
+                setUploadedFileInfo(null);
               }}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none disabled:opacity-50"
             >
@@ -156,6 +177,12 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
           </label>
         </div>
       </div>
+
+      {uploadedFileInfo && (
+        <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 text-[11px] text-slate-400">
+          Archivo revisado: <strong className="text-slate-200">{uploadedFileInfo.name}</strong> · {formatAudioFileSize(uploadedFileInfo.sizeBytes)} · {uploadedFileInfo.durationSeconds === null ? "duración no legible en el navegador" : `${uploadedFileInfo.durationSeconds.toFixed(1)} s`} · {uploadedFileInfo.mimeType}
+        </div>
+      )}
 
       {errorMessage && (
         <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/20 p-3 text-xs text-rose-300">
@@ -260,6 +287,7 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
             </div>
             <div className="lg:col-span-5">
               <AudioPlayer
+                isActive={isActive}
                 audioUrl={analysisResult.filename}
                 isSynthetic={analysisResult.acoustic_detection.verdict === "Evidencia de síntesis"}
                 creatorModel={analysisResult.acoustic_detection.model_name}

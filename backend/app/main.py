@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from app.core.config import settings
+from app.core.config import ensure_data_directories, settings
 from app.core.database import init_db, clear_all_audio_data
 from app.api.routers import (
     health,
@@ -33,6 +33,7 @@ app.add_middleware(
 # Inicializar Base de Datos SQLite en el arranque
 @app.on_event("startup")
 def on_startup():
+    ensure_data_directories()
     init_db()
 
 # Montar Routers Modulares
@@ -82,6 +83,7 @@ def purge_lab_audio_data():
     Permitir eliminar las grabaciones y referencias de voz generadas al finalizar el laboratorio
     para proteger la privacidad de los participantes.
     """
+    ensure_data_directories()
     clear_all_audio_data()
     # Limpiar archivos subidos en data/uploads (preservando las muestras de escenario)
     cleaned_count = 0

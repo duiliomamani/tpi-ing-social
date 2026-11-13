@@ -2,7 +2,7 @@ import os
 import uuid
 import soundfile as sf
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
-from app.core.config import settings
+from app.core.config import ensure_data_directories, settings
 from app.models.schemas import (
     VoiceGenerationJobResponse,
     VoiceGenerationRequest,
@@ -45,6 +45,7 @@ async def upload_voice_reference(
             detail="El archivo excede el tamaño máximo permitido (100 MB)."
         )
 
+    ensure_data_directories()
     with open(raw_tmp_path, "wb") as f:
         f.write(content)
 

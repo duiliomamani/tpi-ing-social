@@ -38,12 +38,16 @@ class Settings(BaseModel):
 
 settings = Settings()
 
-# Ensure directories exist
-for directory in [
-    settings.DATA_DIR,
-    settings.AUDIO_SAMPLES_DIR,
-    settings.UPLOADS_DIR,
-    settings.EXPERIMENTS_DIR,
-    settings.WEIGHTS_DIR,
-]:
-    directory.mkdir(parents=True, exist_ok=True)
+def ensure_data_directories() -> None:
+    """Recreate the writable lab folders if they were removed during cleanup."""
+    for directory in (
+        settings.DATA_DIR,
+        settings.AUDIO_SAMPLES_DIR,
+        settings.UPLOADS_DIR,
+        settings.EXPERIMENTS_DIR,
+        settings.WEIGHTS_DIR,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+
+
+ensure_data_directories()

@@ -2,7 +2,7 @@ import os
 import uuid
 import soundfile as sf
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from app.core.config import settings
+from app.core.config import ensure_data_directories, settings
 from app.models.schemas import AudioAnalysisResponse
 from app.services.audio_detection_service import audio_detection_service
 from app.services.audio_processing import normalize_audio_to_wav
@@ -30,6 +30,7 @@ async def analyze_uploaded_audio(file: UploadFile = File(...)):
             detail="El archivo supera el límite de 100 MB."
         )
 
+    ensure_data_directories()
     with open(raw_tmp_path, "wb") as f:
         f.write(content)
 

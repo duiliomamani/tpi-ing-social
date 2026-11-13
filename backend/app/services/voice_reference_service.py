@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import soundfile as sf
 
-from app.core.config import settings
+from app.core.config import ensure_data_directories, settings
 from app.services.transcription_service import transcription_service
 
 
@@ -138,6 +138,7 @@ class VoiceReferenceService:
 
     @staticmethod
     def _extract_clip(source_path: str, output_path: str, start: float, end: float) -> Dict[str, Any]:
+        ensure_data_directories()
         with sf.SoundFile(source_path) as source:
             sample_rate = int(source.samplerate)
             source.seek(max(0, int(start * sample_rate)))
@@ -166,6 +167,7 @@ class VoiceReferenceService:
         clip_start_seconds: Optional[float] = None,
         clip_end_seconds: Optional[float] = None,
     ) -> Dict[str, Any]:
+        ensure_data_directories()
         started_at = time.time()
         source_info = sf.info(source_path)
         source_duration = float(source_info.duration)

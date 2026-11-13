@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Callable, Dict, Any, Optional
 from app.adapters.f5_tts_adapter import F5TTSAdapter
-from app.core.config import settings
+from app.core.config import ensure_data_directories, settings
 from app.core.database import save_audio_record
 from app.models.schemas import VoiceGenerationResponse
 from app.services.watermark_detection_service import watermark_detection_service
@@ -32,6 +32,7 @@ class VoiceGenerationService:
 
         audio_id = f"synth_{uuid.uuid4().hex[:12]}"
         filename = f"{audio_id}.wav"
+        ensure_data_directories()
         output_path = str(settings.AUDIO_SAMPLES_DIR / filename)
 
         ref_path = None

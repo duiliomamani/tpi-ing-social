@@ -36,7 +36,7 @@ const WORKFLOW_STEPS = [
   {
     number: "01",
     title: "Preparar una muestra",
-    description: "Elegí un caso disponible o generá una voz sintética con una referencia autorizada.",
+    description: "Elegí un caso en la matriz o generá una voz sintética con una referencia autorizada.",
     destination: "generation",
     action: "Preparar audio",
     icon: Mic,
@@ -219,6 +219,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       : "Benchmark todavía no ejecutado",
   ];
 
+  const focusScenarioMatrix = () => {
+    const matrixHeading = document.getElementById("voice-intent-heading");
+    if (!matrixHeading) return;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    matrixHeading.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+  };
+
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyber-850 via-cyber-900 to-black p-6 shadow-2xl sm:p-8">
@@ -251,11 +258,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate("experiments")}
+              onClick={focusScenarioMatrix}
               className="flex items-center space-x-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-700"
             >
-              <Activity className="h-3.5 w-3.5 text-cyan-300" />
-              <span>Ver benchmark acústico</span>
+              <Layers className="h-3.5 w-3.5 text-cyan-300" />
+              <span>Ruta rápida: elegir caso</span>
             </button>
           </div>
         </div>
@@ -303,7 +310,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 key={step.number}
                 type="button"
-                onClick={() => isComplete && index === 3 && reportAvailable ? onExportReport() : onNavigate(step.destination)}
+                onClick={() => {
+                  if (isComplete && index === 3 && reportAvailable) onExportReport();
+                  else if (index === 0 && !isComplete) focusScenarioMatrix();
+                  else onNavigate(step.destination);
+                }}
                 className={`group cyber-panel flex h-full flex-col p-5 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-cyan-400 ${isNext ? "border-cyan-500/40" : "hover:border-cyan-500/40"}`}
               >
                 <div className="flex w-full items-start justify-between">
@@ -321,7 +332,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">{step.description}</p>
                 <p className="mt-3 min-h-8 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">{stageEvidence[index]}</p>
                 <span className="mt-3 inline-flex items-center space-x-1.5 text-xs font-semibold text-cyan-300">
-                  <span>{isComplete && index === 3 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext ? "Continuar ahora" : step.action}</span>
+                  <span>{isComplete && index === 3 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext && index === 0 ? "Elegir caso" : isNext ? "Continuar ahora" : step.action}</span>
                   <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </span>
               </button>
@@ -419,7 +430,7 @@ function VoiceIntentMatrix({ onNavigate, onRunScenario, onCreateControl }: Voice
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Matriz de escenarios</p>
-          <h2 id="voice-intent-heading" className="mt-1 text-lg font-bold text-white">Tipo de voz × propósito de la llamada</h2>
+          <h2 id="voice-intent-heading" className="mt-1 scroll-mt-24 text-lg font-bold text-white">Tipo de voz × propósito de la llamada</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
             Ejecutá un caso para analizar audio, procedencia, contenido y verificación. La matriz organiza escenarios; la evaluación entrega evidencia, no una certeza automática.
           </p>

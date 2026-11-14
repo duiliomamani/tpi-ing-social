@@ -62,6 +62,7 @@ export async function synthesizeVoice(data: {
   cfg_strength?: number;
   nfe_step?: number;
   speed?: number;
+  seed?: number;
 }): Promise<VoiceGenerationResponse> {
   const res = await fetch(`${API_BASE}/generation/synthesize`, {
     method: "POST",
@@ -86,6 +87,7 @@ export async function synthesizeVoiceWithProgress(
     cfg_strength?: number;
     nfe_step?: number;
     speed?: number;
+    seed?: number;
   },
   onPhase: (message: string) => void
 ): Promise<VoiceGenerationResponse> {

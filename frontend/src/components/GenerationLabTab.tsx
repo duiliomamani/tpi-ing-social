@@ -34,6 +34,7 @@ interface GenerationLabTabProps {
     cfgStrength: number;
     nfeStep: number;
     speed: number;
+    seed: number | null;
   }) => void;
   onBusyChange?: (busy: boolean) => void;
 }
@@ -60,7 +61,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   const [referenceTranscript, setReferenceTranscript] = useState("");
   const [sourceTranscript, setSourceTranscript] = useState("");
   const [clipStartSeconds, setClipStartSeconds] = useState(0);
-  const [clipEndSeconds, setClipEndSeconds] = useState(8);
+  const [clipEndSeconds, setClipEndSeconds] = useState(10);
   const [sourcePlaybackTime, setSourcePlaybackTime] = useState(0);
   const [transcriptionInfo, setTranscriptionInfo] = useState<VoiceReferenceTranscriptionResponse | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -73,8 +74,10 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
     "Esta es una demo local de VoiceShield para el laboratorio académico."
   );
   const [cfgStrength, setCfgStrength] = useState(2.0);
-  const [nfeStep, setNfeStep] = useState(16);
+  const [nfeStep, setNfeStep] = useState(32);
   const [generationSpeed, setGenerationSpeed] = useState(1.0);
+  const [useFixedSeed, setUseFixedSeed] = useState(true);
+  const [generationSeed, setGenerationSeed] = useState(2026);
 
   useEffect(() => {
     if (initialText?.trim()) setTextToSynthesize(initialText);
@@ -346,6 +349,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
         cfgStrength,
         nfeStep,
         speed: generationSpeed,
+        seed: useFixedSeed ? generationSeed : null,
       };
       const res = await synthesizeVoiceWithProgress({
         text: textToSynthesize,
@@ -357,12 +361,16 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
         cfg_strength: cfgStrength,
         nfe_step: nfeStep,
         speed: generationSpeed,
+        seed: generationContext.seed ?? undefined,
       }, setGenerationPhase);
       setGenerationResult(res);
       setGenerationTranscript(textToSynthesize.trim());
       setGenerationReferenceTranscript(referenceTranscript.trim());
       setGenerationPhase("Audio generado correctamente.");
-      onGenerationComplete?.(res, generationContext);
+      onGenerationComplete?.(res, {
+        ...generationContext,
+        seed: res.seed_used ?? generationContext.seed,
+      });
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -491,7 +499,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
               <div>
                 <div className="text-xs font-semibold text-cyan-300">Grabación fuente · {sourceDurationSeconds.toFixed(1)} s</div>
                 <p className="mt-1 text-[10px] text-slate-400">
-                  Escuchá la grabación, marcá el inicio y el final del pasaje que mejor represente la voz. Solo ese recorte se transcribe y se envía a F5-TTS.
+                  Elegí una frase continua de 8–12 s con voz natural y clara, sin música ni voces superpuestas. Revisá que la transcripción incluya exactamente todo ese fragmento.
                 </p>
               </div>
               <AudioPlayer
@@ -699,7 +707,10 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p className="text-[10px] leading-relaxed text-slate-400 sm:col-span-2 xl:col-span-4">
+              Punto de partida para comparar: CFG 2.0 · 32 pasos · velocidad 1.0×. Cambiá un ajuste por vez; el resultado depende sobre todo de la referencia limpia y su transcripción exacta.
+            </p>
             <label className="space-y-2 text-xs text-slate-300">
               <span className="flex items-center justify-between">
                 <span>Guía CFG</span>
@@ -714,7 +725,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                 onChange={(e) => setCfgStrength(Number(e.target.value))}
                 className="w-full accent-cyan-400"
               />
-              <span className="block text-[10px] text-slate-500">Fuerza de guía documentada por F5-TTS.</span>
+              <span className="block text-[10px] text-slate-500">2.0 es el valor estándar. Subirlo no garantiza más similitud o naturalidad.</span>
             </label>
             <div className="space-y-2 text-xs text-slate-300" role="group" aria-label="Pasos de inferencia">
               <span className="flex items-center justify-between">
@@ -725,7 +736,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                 {[
                   { value: 16, label: "Demo rápida" },
                   { value: 24, label: "Intermedio" },
-                  { value: 32, label: "Más cálculo" },
+                  { value: 32, label: "Predeterminado F5" },
                   { value: 48, label: "Experimental" },
                 ].map((option) => {
                   const isSelected = nfeStep === option.value;
@@ -748,7 +759,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                   );
                 })}
               </div>
-              <span className="block text-[10px] text-slate-500">Más pasos requieren más cálculo y tardan más; no aseguran una voz más natural.</span>
+              <span className="block text-[10px] text-slate-500">32 es el valor estándar de F5-TTS. Más pasos tardan más y no aseguran más naturalidad.</span>
             </div>
             <label className="space-y-2 text-xs text-slate-300">
               <span className="flex items-center justify-between">
@@ -764,8 +775,34 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                 onChange={(e) => setGenerationSpeed(Number(e.target.value))}
                 className="w-full accent-cyan-400"
               />
-              <span className="block text-[10px] text-slate-500">Ajusta la velocidad de la voz generada.</span>
+              <span className="block text-[10px] text-slate-500">1.0 es neutro; cambia duración, no tono. Textos muy cortos pueden ignorarlo.</span>
             </label>
+            <div className="space-y-2 text-xs text-slate-300" role="group" aria-label="Semilla de generación">
+              <label className="flex items-center gap-2 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={useFixedSeed}
+                  onChange={(event) => setUseFixedSeed(event.target.checked)}
+                  disabled={isGenerating}
+                  className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
+                />
+                <span>Fijar semilla para comparar</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="2147483647"
+                step="1"
+                value={generationSeed}
+                onChange={(event) => setGenerationSeed(Math.max(0, Math.min(2147483647, Math.trunc(Number(event.target.value) || 0))))}
+                disabled={!useFixedSeed || isGenerating}
+                aria-label="Semilla numérica de generación"
+                className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-cyan-300 disabled:opacity-50"
+              />
+              <span className="block text-[10px] text-slate-500">
+                La misma semilla ayuda a comparar ajustes; cambiala para probar otra variación. No mejora la voz por sí sola.
+              </span>
+            </div>
           </div>
 
           <button
@@ -824,7 +861,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                   {generationResult.academic_banner}
                 </span>
                 <p className="text-[10px] text-amber-200/80 mt-0.5">
-                  Marca de procedencia del laboratorio: {generationResult.watermark_embedded ? "Agregada" : "No agregada"} | Motor: {generationResult.creator_model}
+                  Marca de procedencia del laboratorio: {generationResult.watermark_embedded ? "Agregada" : "No agregada"} | Motor: {generationResult.creator_model} | Semilla: {generationResult.seed_used ?? "no informada"}
                 </p>
               </div>
 

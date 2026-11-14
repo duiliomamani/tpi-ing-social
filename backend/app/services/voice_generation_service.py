@@ -22,6 +22,7 @@ class VoiceGenerationService:
         cfg_strength: float = 2.0,
         nfe_step: int = 32,
         speed: float = 1.0,
+        seed: Optional[int] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> VoiceGenerationResponse:
         """
@@ -53,6 +54,7 @@ class VoiceGenerationService:
             cfg_strength=cfg_strength,
             nfe_step=nfe_step,
             speed=speed,
+            seed=seed,
             progress_callback=progress_callback,
         )
 
@@ -81,6 +83,7 @@ class VoiceGenerationService:
             watermark_embedded=result["watermark_embedded"],
             academic_banner=result["academic_banner"],
             generation_time_ms=result["generation_time_ms"],
+            seed_used=result.get("seed_used"),
             message=(
                 "Audio sintético generado bajo autorización explícita"
                 + (" y con marca de procedencia del laboratorio." if result["watermark_embedded"] else ".")

@@ -193,6 +193,7 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
             cfg_strength=request.cfg_strength,
             nfe_step=request.nfe_step,
             speed=request.speed,
+            seed=request.seed,
         )
         return response
     except PermissionError as pe:

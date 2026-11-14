@@ -210,8 +210,9 @@ class F5TTSAdapter(BaseTTSAdapter):
         apply_watermark: bool = True,
         reference_transcript: str = "",
         cfg_strength: float = 2.0,
-        nfe_step: int = 16,
+        nfe_step: int = 32,
         speed: float = 1.0,
+        seed: Optional[int] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         if not consent_granted:
@@ -268,6 +269,7 @@ class F5TTSAdapter(BaseTTSAdapter):
                 "cfg_strength": cfg_strength,
                 "nfe_step": nfe_step,
                 "speed": speed,
+                "seed": seed,
             }
             if progress_callback:
                 progress_callback(f"Inferencia F5-TTS en {self.device.upper()} · {nfe_step} pasos…")
@@ -287,6 +289,8 @@ class F5TTSAdapter(BaseTTSAdapter):
                 inference = self.tts.infer(**infer_args)
 
             waveform, output_sample_rate, _ = inference
+            seed_used = getattr(self.tts, "seed", seed)
+            seed_used = int(seed_used) if seed_used is not None else None
             waveform = self._to_numpy(waveform)
             output_sample_rate = int(output_sample_rate)
             if progress_callback:
@@ -323,6 +327,7 @@ class F5TTSAdapter(BaseTTSAdapter):
                 "watermark_embedded": watermark_embedded,
                 "academic_banner": settings.SYNTHETIC_AUDIO_BANNER,
                 "generation_time_ms": round((time.time() - started_at) * 1000, 2),
+                "seed_used": seed_used,
                 "ref_pitch_hz": round(ref_profile["median_f0"], 1)
                 if ref_profile.get("median_f0") is not None
                 else None,

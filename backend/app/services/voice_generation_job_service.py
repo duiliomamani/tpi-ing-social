@@ -92,6 +92,7 @@ class VoiceGenerationJobService:
                 cfg_strength=request.cfg_strength,
                 nfe_step=request.nfe_step,
                 speed=request.speed,
+                seed=request.seed,
                 progress_callback=lambda message: self._set_progress(job_id, message),
             )
             with self._lock:

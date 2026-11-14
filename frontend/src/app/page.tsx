@@ -84,6 +84,7 @@ export default function Home() {
     cfgStrength: number;
     nfeStep: number;
     speed: number;
+    seed: number | null;
   }) => {
     updateSessionReport({
       generated_voice: {
@@ -92,7 +93,12 @@ export default function Home() {
         text: context.text,
         reference_transcript: context.referenceTranscript,
         speaker_alias: context.speakerAlias,
-        parameters: { cfg_strength: context.cfgStrength, nfe_step: context.nfeStep, speed: context.speed },
+        parameters: {
+          cfg_strength: context.cfgStrength,
+          nfe_step: context.nfeStep,
+          speed: context.speed,
+          seed: context.seed,
+        },
       },
     });
   };

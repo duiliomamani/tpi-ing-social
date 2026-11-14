@@ -25,13 +25,13 @@ async def upload_voice_reference(
 ):
     """
     Carga de muestra WAV de referencia para clonación.
-    Exige consentimiento expreso para almacenamiento y procesamiento.
+    Exige una declaración del operador sobre la autorización para procesar la muestra.
     Normaliza de manera transparente cualquier formato (WebM de navegador, Ogg, MP3, WAV) a WAV PCM 16kHz mono con FFmpeg.
     """
     if not consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requiere autorización expresa del titular para cargar muestras de voz en el laboratorio."
+            detail="Se requiere que el operador declare autorización para cargar la muestra de voz."
         )
 
     ref_id = f"ref_{uuid.uuid4().hex[:10]}"
@@ -104,7 +104,7 @@ async def upload_voice_reference(
             if audio_duration > settings.MAX_VOICE_REFERENCE_DURATION_SECONDS
             else "Referencia de voz cargada y lista para transcripción local."
         ),
-        "consent_verified": True
+        "consent_declared": True
     }
 
 
@@ -114,7 +114,7 @@ def transcribe_voice_reference(request: VoiceReferenceTranscriptionRequest):
     if not request.consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requiere consentimiento expreso para transcribir la muestra de voz.",
+            detail="Se requiere que el operador declare autorización para transcribir la muestra de voz.",
         )
 
     reference_path = settings.UPLOADS_DIR / f"{request.reference_audio_id}.wav"
@@ -175,7 +175,7 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
     if not request.consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="ACCESO DENEGADO: No se autoriza la generación sintética sin consentimiento expreso."
+            detail="ACCESO DENEGADO: la sesión debe registrar la declaración de autorización para generar.",
         )
 
     model_available, model_message = voice_generation_service.tts_adapter.is_available()
@@ -218,7 +218,7 @@ def start_voice_generation_job(request: VoiceGenerationRequest):
     if not request.consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="ACCESO DENEGADO: No se autoriza la generación sintética sin consentimiento expreso.",
+            detail="ACCESO DENEGADO: la sesión debe registrar la declaración de autorización para generar.",
         )
 
     model_available, model_message = voice_generation_service.tts_adapter.is_available()

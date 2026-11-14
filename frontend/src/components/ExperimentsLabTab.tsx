@@ -56,21 +56,21 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
           <Activity className="h-4 w-4" />
           <span>Módulo Experimental & Robustez Acústica</span>
         </div>
-        <h2 className="text-2xl font-black text-white">Laboratorio Comparativo de Detección</h2>
+        <h2 className="text-2xl font-black text-white">Benchmark Comparativo Exploratorio</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Evaluación empírica y reproducible de AASIST ante 4 transformaciones estandarizadas con FFmpeg
-          (Original, Compresión MP3 32k, Ruido Gaussiano y Filtro Telefónico 300Hz-3400Hz).
+          Compara el baseline acústico de VoiceShield sobre una muestra C declarada humana y una muestra A sintética,
+          cada una bajo cuatro transformaciones FFmpeg. No es el modelo upstream AASIST.
         </p>
       </div>
 
       {/* Control Action Panel */}
       <div className="cyber-panel p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-bold text-white mb-1">Ejecutar Benchmark de Robustez Acústica</h3>
+          <h3 className="text-sm font-bold text-white mb-1">Ejecutar benchmark de sensibilidad a transformaciones</h3>
           <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-            Genera 8 variantes de audio con transformaciones idénticas sobre muestras humanas y sintéticas,
-            normaliza los contenedores WAV para evitar sesgos por metadatos y computa las métricas reales
-            del clasificador AASIST.
+            Genera ocho variantes a partir de dos grabaciones fuente (C y A). La grabación humana y el consentimiento
+            se declaran en el manifiesto local; el sistema no los verifica. Las métricas son exploratorias y no
+            representan ocho voces independientes ni rendimiento de campo.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
           {isRunning ? (
             <>
               <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-              <span>Procesando FFmpeg y AASIST...</span>
+              <span>Procesando FFmpeg y detector experimental...</span>
             </>
           ) : (
             <>
@@ -102,10 +102,14 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
       {/* Benchmark Results */}
       {experimentResult && (
         <div className="space-y-6">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-950/15 p-4 text-xs text-slate-200">
+            <p><strong className="text-white">Motor:</strong> {experimentResult.detector_engine}</p>
+            <p className="mt-1"><strong className="text-white">Fuentes:</strong> {experimentResult.dataset_summary}</p>
+          </div>
           {/* Top Metrics Row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="cyber-panel p-4 text-center">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Accuracy Global</span>
+              <span className="text-[10px] font-bold uppercase text-slate-400">Exactitud en estas variantes</span>
               <div className="text-2xl font-black text-white mt-1">
                 {(experimentResult.metrics.accuracy * 100).toFixed(1)}%
               </div>
@@ -121,21 +125,21 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
             </div>
 
             <div className="cyber-panel p-4 text-center">
-              <span className="text-[10px] font-bold uppercase text-slate-400">False Positive Rate (FPR)</span>
+              <span className="text-[10px] font-bold uppercase text-slate-400">Falsos positivos sobre C</span>
               <div className="text-2xl font-black text-amber-400 mt-1">
                 {(experimentResult.metrics.false_positive_rate * 100).toFixed(1)}%
               </div>
-              <span className="text-[10px] text-slate-500">Falsas Alarmas (Humano -&gt; Sintético)</span>
+              <span className="text-[10px] text-slate-500">C humana declarada marcada como sintética</span>
             </div>
 
             <div className="cyber-panel p-4 text-center">
-              <span className="text-[10px] font-bold uppercase text-slate-400">EER Estimado</span>
+              <span className="text-[10px] font-bold uppercase text-slate-400">EER exploratoria</span>
               <div className="text-2xl font-black text-purple-400 mt-1">
                 {experimentResult.metrics.equal_error_rate_estimate !== null
                   ? `${(experimentResult.metrics.equal_error_rate_estimate * 100).toFixed(1)}%`
                   : "N/A"}
               </div>
-              <span className="text-[10px] text-slate-500">Equal Error Rate (FAR = FRR)</span>
+              <span className="text-[10px] text-slate-500">Aproximación sobre ocho variantes derivadas</span>
             </div>
           </div>
 
@@ -162,7 +166,7 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
                   <tbody>
                     <tr>
                       <td className="p-2.5 border border-slate-800 bg-slate-900/60 font-bold text-slate-300 text-left">
-                        Real: Sintético (Spoof)
+                        Etiqueta de fuente: Sintética
                       </td>
                       <td className="p-2.5 border border-slate-800 bg-emerald-950/30 text-emerald-300 font-mono font-bold text-base">
                         {experimentResult.confusion_matrix.true_positives} (TP)
@@ -173,7 +177,7 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
                     </tr>
                     <tr>
                       <td className="p-2.5 border border-slate-800 bg-slate-900/60 font-bold text-slate-300 text-left">
-                        Real: Humano (Bonafide)
+                        Etiqueta de fuente: Humana declarada
                       </td>
                       <td className="p-2.5 border border-slate-800 bg-rose-950/30 text-rose-300 font-mono font-bold text-base">
                         {experimentResult.confusion_matrix.false_positives} (FP)
@@ -200,10 +204,10 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
             {/* EER / ROC Threshold Curve Chart */}
             <div className="cyber-panel p-5 space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Curva de Trade-off de Error (FPR vs FNR por Umbral)
+                Tasas de error por umbral (exploratorio)
               </h4>
               <p className="text-[11px] text-slate-400 leading-tight">
-                El punto de cruce representa el Equal Error Rate (EER) del detector acústico.
+                Compara errores al distinguir el origen de voz declarado en estas variantes; no mide la detección de fraude.
               </p>
 
               <div className="h-60 w-full pt-2">
@@ -219,7 +223,7 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
                     <Line
                       type="monotone"
                       dataKey="false_positive_rate"
-                      name="FPR (Falsa Alarma)"
+                      name="FPR (C marcada sintética)"
                       stroke="#ff3b5c"
                       strokeWidth={2}
                       dot={false}
@@ -227,7 +231,7 @@ export const ExperimentsLabTab: React.FC<ExperimentsLabTabProps> = ({ onExperime
                     <Line
                       type="monotone"
                       dataKey="false_negative_rate"
-                      name="FNR (Omisión de Ataque)"
+                      name="FNR (Sintética marcada como humana)"
                       stroke="#00f0ff"
                       strokeWidth={2}
                       dot={false}

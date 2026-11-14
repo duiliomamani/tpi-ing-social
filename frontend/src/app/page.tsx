@@ -148,6 +148,20 @@ export default function Home() {
     sessionReport.risk_assessment || sessionReport.experiment
   );
 
+  const resetSessionAfterPurge = () => {
+    setDemoAudio(null);
+    setRiskScenarioRun(null);
+    setGenerationPrompt(undefined);
+    setGenerationPromptVersion((version) => version + 1);
+    setSessionReport({ schema_version: 1, exported_at: new Date().toISOString() });
+    setActiveTab("dashboard");
+    setVisitedTabs(["dashboard"]);
+    setPresentationOpen(false);
+    setLocalOperationBusy(false);
+    riskRunSequence.current = 0;
+    setSessionVersion((current) => current + 1);
+  };
+
   useEffect(() => {
     const checkStatus = () => {
       fetchHealth()
@@ -188,15 +202,7 @@ export default function Home() {
           reportAvailable={reportAvailable}
           onExportReport={exportSessionReport}
           localOperationBusy={localOperationBusy}
-          onDataPurged={() => {
-            setDemoAudio(null);
-            setRiskScenarioRun(null);
-            setSessionReport({ schema_version: 1, exported_at: new Date().toISOString() });
-            setActiveTab("dashboard");
-            setVisitedTabs(["dashboard"]);
-            setLocalOperationBusy(false);
-            setSessionVersion((current) => current + 1);
-          }}
+          onDataPurged={resetSessionAfterPurge}
         />
 
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none">
@@ -263,7 +269,11 @@ export default function Home() {
           )}
           {visitedTabs.includes("conclusions") && (
             <div hidden={activeTab !== "conclusions"}>
-              <ConclusionsTab key={`conclusions-${sessionVersion}`} />
+              <ConclusionsTab
+                key={`conclusions-${sessionVersion}`}
+                onDataPurged={resetSessionAfterPurge}
+                localOperationBusy={localOperationBusy}
+              />
             </div>
           )}
         </main>
@@ -284,11 +294,11 @@ export default function Home() {
           <div className="text-left">
             <span className="font-bold text-slate-300">VoiceShield Lab</span> — Proof of Concept Universitaria
             <p className="text-[11px] text-slate-500 mt-0.5">
-              "Clonación de voz autorizada, análisis forense de audio y evaluación defensiva de riesgo"
+              "Generación consentida de voz, señales acústicas exploratorias y evaluación defensiva de riesgo"
             </p>
           </div>
           <div className="text-right text-[11px] text-slate-500 font-mono">
-            Licenciatura en Seguridad Informática • Inferencia Local (Zero-Cloud / Ética Controlada)
+            Licenciatura en Seguridad Informática • Inferencia local después de descargar los modelos
           </div>
         </div>
       </footer>

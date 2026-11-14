@@ -34,7 +34,7 @@ class BaseWhisperAdapter(ABC):
 class BaseAudioDetectorAdapter(ABC):
     @abstractmethod
     def is_available(self) -> Tuple[bool, str]:
-        """Check if AASIST or acoustic detector model is available."""
+        """Check whether the experimental acoustic detector is available."""
         pass
 
     @abstractmethod
@@ -45,7 +45,7 @@ class BaseAudioDetectorAdapter(ABC):
 class BaseWatermarkAdapter(ABC):
     @abstractmethod
     def is_available(self) -> Tuple[bool, str]:
-        """Check if PerTh watermark engine is available."""
+        """Check whether a provenance-marking method is available."""
         pass
 
     @abstractmethod

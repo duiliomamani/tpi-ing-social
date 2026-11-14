@@ -36,11 +36,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handlePurge = async () => {
     if (localOperationBusy) return;
-    if (confirm("¿Desea eliminar de forma segura todas las grabaciones temporales y referencias de voz generadas en la sesión?")) {
+    if (confirm("¿Eliminar cargas, clones de esta sesión, derivados experimentales, grabaciones C/D registradas y metadatos locales?")) {
       try {
         const res = await purgeLabData();
         onDataPurged();
-        alert(res.message);
+        alert([res.message, res.scope_note].filter(Boolean).join("\n\n"));
       } catch (err: any) {
         alert("Error al sanear datos: " + err.message);
       }
@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 LAB PoC
               </span>
             </div>
-            <p className="hidden text-[11px] text-slate-400 sm:block">Clonación autorizada y análisis acústico</p>
+            <p className="hidden text-[11px] text-slate-400 sm:block">Generación de voz y análisis acústico local</p>
           </div>
         </button>
 
@@ -127,8 +127,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={handlePurge}
             disabled={localOperationBusy}
-            aria-label="Eliminar los datos temporales del laboratorio"
-            title={localOperationBusy ? "Esperá a que termine la operación de audio antes de purgar los datos" : "Saneamiento Ético: Eliminar datos y grabaciones temporales"}
+            aria-label="Limpiar datos temporales del laboratorio"
+            title={localOperationBusy ? "Esperá a que termine la operación de audio antes de limpiar los datos" : "Eliminar archivos temporales y datos de sesión"}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-900/50 bg-rose-950/20 text-rose-400 transition hover:bg-rose-900/40 disabled:cursor-not-allowed disabled:opacity-35"
           >
             <Trash2 className="h-4 w-4" />

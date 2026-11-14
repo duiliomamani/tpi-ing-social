@@ -168,7 +168,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   // Start Mic Recording
   const startRecording = async () => {
     if (!consentGranted) {
-      alert("Debe otorgar consentimiento expreso firmado antes de grabar la muestra de voz.");
+      alert("Confirme que cuenta con autorización antes de grabar la muestra de voz.");
       return;
     }
     try {
@@ -227,7 +227,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
     input.value = "";
 
     if (!consentGranted) {
-      alert("Debe marcar la casilla de consentimiento expreso antes de cargar archivos de voz.");
+      alert("Confirme que cuenta con autorización antes de cargar la muestra de voz.");
       e.target.value = "";
       return;
     }
@@ -313,7 +313,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   // Trigger Local Synthesis
   const handleGenerate = async () => {
     if (!consentGranted) {
-      setErrorMessage("No es posible sintetizar sin consentimiento expreso firmado.");
+      setErrorMessage("Confirme que cuenta con autorización antes de sintetizar.");
       return;
     }
     if (!textToSynthesize.trim()) {
@@ -393,11 +393,10 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-white">Declaración de Autorización Expresa y Política Ética</h4>
+            <h4 className="text-sm font-bold text-white">Declaración de autorización y uso académico</h4>
             <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-              El laboratorio prohíbe taxativamente la clonación de voces de terceros sin consentimiento
-              o el uso de identidades de personas públicas. Para habilitar los controles de grabación y síntesis,
-              el titular de la muestra debe autorizar formalmente el experimento.
+              Usá solo una voz propia o una muestra cuyo uso haya sido autorizado. La casilla registra tu declaración;
+              VoiceShield no comprueba la identidad, el consentimiento ni si la voz pertenece a una figura pública.
             </p>
 
             <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800">
@@ -409,7 +408,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                   className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
                 />
                 <span className="text-xs font-semibold text-slate-200">
-                  Autorizo expresamente el uso de mi muestra de voz con fines de investigación académica en VoiceShield Lab.
+                  Confirmo que soy titular de la voz o cuento con autorización para usar esta muestra con fines académicos.
                 </span>
               </label>
 
@@ -918,7 +917,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
               <AudioWaveform className="h-10 w-10 text-slate-700 mb-3" />
               <p className="font-medium text-slate-400">Ningún audio sintético generado aún</p>
               <p className="text-[11px] text-slate-600 mt-1 max-w-xs">
-                Firme la autorización ética, grabe o cargue una muestra de voz y presione sintetizar para evaluar el clon acústico.
+                Confirme que cuenta con autorización, grabe o cargue una muestra y presione sintetizar para evaluar el resultado.
               </p>
             </div>
           )}

@@ -23,7 +23,7 @@ class Settings(BaseModel):
     WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")
     WHISPER_LANGUAGE: str = "es"
     
-    AASIST_WEIGHTS_PATH: Path = WEIGHTS_DIR / "AASIST.pth"
+    ACOUSTIC_CHECKPOINT_PATH: Path = WEIGHTS_DIR / "voiceshield-acoustic-prototype.pth"
     
     # Audio constants
     TARGET_SAMPLE_RATE: int = 16000

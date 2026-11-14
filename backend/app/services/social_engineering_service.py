@@ -29,7 +29,7 @@ class SocialEngineeringService:
             total_detected_factors=result.get("total_detected_factors", 0),
             semantic_risk_score=result.get("semantic_risk_score", 0.0),
             semantic_risk_level=result.get("semantic_risk_level", "Bajo"),
-            analyzer_engine=result.get("analyzer_engine", "Gemma 3 4B"),
+            analyzer_engine=result.get("analyzer_engine", "analizador semántico local"),
             untrusted_data_defense_applied=result.get("untrusted_data_defense_applied", True),
             summary=result.get("summary", "")
         )

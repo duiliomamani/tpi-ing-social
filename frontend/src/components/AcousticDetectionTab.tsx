@@ -9,8 +9,8 @@ import {
   Layers,
   ArrowRight
 } from "lucide-react";
-import { AudioAnalysisResponse } from "@/lib/types";
-import { analyzeAudioSample, analyzeUploadedAudio } from "@/lib/api";
+import { AudioAnalysisResponse, LabAudioSample } from "@/lib/types";
+import { analyzeAudioSample, analyzeUploadedAudio, fetchLabSamples } from "@/lib/api";
 import { AudioFilePreflight, formatAudioFileSize, inspectAudioFile } from "@/lib/audio-file";
 import { WaveformSpectrogram } from "./WaveformSpectrogram";
 import { AudioPlayer } from "./AudioPlayer";
@@ -32,12 +32,30 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
   onEvaluateAudio,
   onAnalysisComplete
 }) => {
-  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "scenario_a.wav");
+  const [selectedSample, setSelectedSample] = useState<string>(initialSampleName || "");
+  const [samples, setSamples] = useState<LabAudioSample[]>([]);
+  const [samplesError, setSamplesError] = useState<string | null>(null);
+  const [uploadConsentDeclared, setUploadConsentDeclared] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AudioAnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [uploadedFileInfo, setUploadedFileInfo] = useState<AudioFilePreflight | null>(null);
+
+  useEffect(() => {
+    let isCurrent = true;
+    fetchLabSamples()
+      .then((result) => {
+        if (!isCurrent) return;
+        setSamples(result);
+        setSamplesError(null);
+        setSelectedSample((current) => current || result.find((sample) => sample.audio_available)?.audio_file || "");
+      })
+      .catch((err: Error) => {
+        if (isCurrent) setSamplesError(err.message);
+      });
+    return () => { isCurrent = false; };
+  }, []);
 
   useEffect(() => {
     if (!initialSampleName || selectedSample === initialSampleName) return;
@@ -66,12 +84,22 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
     }
   };
 
+  const selectedCatalogSample = samples.find((sample) => sample.audio_file === selectedSample);
+  const selectedSessionAudio = Boolean(
+    initialSampleName && selectedSample === initialSampleName && !selectedCatalogSample
+  );
+  const selectedSampleAvailable = selectedSessionAudio || Boolean(selectedCatalogSample?.audio_available);
+
   // Upload external file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const file = input.files?.[0];
     if (!file) return;
     input.value = "";
+    if (!uploadConsentDeclared) {
+      setErrorMessage("Confirmá que contás con autorización para analizar este audio.");
+      return;
+    }
 
     try {
       setIsAnalyzing(true);
@@ -80,7 +108,7 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
       setPlaybackTime(0);
       const fileInfo = await inspectAudioFile(file);
       setUploadedFileInfo(fileInfo);
-      const res = await analyzeUploadedAudio(file);
+      const res = await analyzeUploadedAudio(file, uploadConsentDeclared);
       setAnalysisResult(res);
       onAnalysisComplete?.(res);
     } catch (err: any) {
@@ -100,15 +128,15 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
         </div>
         <h2 className="text-2xl font-black text-white">Análisis Acústico y de Procedencia</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Extracción espectro-temporal y clasificación mediante la red neuronal AASIST y verificación
-          de marca de agua imperceptible PerTh.
+          El detector acústico experimental informa rasgos compatibles con síntesis o voz humana. La marca de procedencia
+          se consulta por separado; ninguna de las señales autentica al hablante.
         </p>
       </div>
 
       {/* Input Options: Select Scenario OR Upload */}
       {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
         <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-xs text-cyan-100">
-          El clon recién generado quedó seleccionado. Ejecutá el análisis para comparar AASIST y PerTh.
+          El audio generado quedó seleccionado. Ejecutá el análisis para revisar el baseline acústico y la firma de procedencia.
         </div>
       )}
 
@@ -133,27 +161,35 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
               {initialSampleName && !REFERENCE_SAMPLE_NAMES.includes(initialSampleName) && (
                 <option value={initialSampleName}>Clon generado en esta sesión</option>
               )}
-              <option value="scenario_a.wav">Muestra A — Suplantación Directiva (Sintético con Marca PerTh)</option>
-              <option value="scenario_b.wav">Muestra B — Urgencia Emocional (Sintético con Marca PerTh)</option>
-              <option value="scenario_c.wav">Muestra C — Coordinación Laboral (Voz Humana de Control)</option>
-              <option value="scenario_d.wav">Muestra D — Solicitud de OTP con voz humana</option>
+              <option value="" disabled>Seleccioná una muestra preparada</option>
+              {samples.map((sample) => (
+                <option key={sample.code} value={sample.audio_file} disabled={!sample.audio_available}>
+                  {sample.title}{sample.audio_available ? "" : " · falta audio o procedencia"}
+                </option>
+              ))}
             </select>
+            {selectedCatalogSample && (
+              <p className="mt-2 text-[10px] text-slate-400">
+                {selectedCatalogSample.ground_truth_basis} {selectedCatalogSample.availability_note}
+              </p>
+            )}
+            {samplesError && <p className="mt-2 text-[10px] text-amber-300">No se pudo consultar el catálogo: {samplesError}</p>}
           </div>
 
           <button
             onClick={handleAnalyzePreloaded}
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || !selectedSample || (!selectedSampleAvailable && !selectedSessionAudio)}
             className="mt-3 flex items-center justify-center space-x-2 rounded-lg bg-cyan-500 py-2 text-xs font-bold text-black hover:bg-cyan-400 disabled:opacity-40 transition"
           >
             {isAnalyzing ? (
               <>
                 <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                <span>Ejecutando Inferencia AASIST & PerTh...</span>
+                <span>Analizando señal y marca...</span>
               </>
             ) : (
               <>
                 <Activity className="h-4 w-4" />
-                <span>Ejecutar Pipeline Forense en Muestra</span>
+                <span>Analizar muestra de audio</span>
               </>
             )}
           </button>
@@ -166,14 +202,24 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
               Cargar Archivo Externo:
             </label>
             <p className="text-[11px] text-slate-400 leading-tight mb-3">
-              También podés subir un audio externo o un clon descargado para contrastar.
+              También podés subir una grabación con autorización para analizarla. VoiceShield registra tu declaración, no la verifica.
             </p>
+            <label className="mb-3 flex items-start gap-2 text-[10px] leading-relaxed text-slate-300">
+              <input
+                type="checkbox"
+                checked={uploadConsentDeclared}
+                onChange={(event) => setUploadConsentDeclared(event.target.checked)}
+                disabled={isAnalyzing}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
+              />
+              <span>Declaro que cuento con autorización para procesar este audio en el laboratorio.</span>
+            </label>
           </div>
 
-          <label className={`flex items-center justify-center space-x-2 rounded-lg border border-slate-700 bg-slate-800/80 py-2 text-xs font-semibold text-slate-200 transition ${isAnalyzing ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-slate-700"}`}>
+          <label className={`flex items-center justify-center space-x-2 rounded-lg border border-slate-700 bg-slate-800/80 py-2 text-xs font-semibold text-slate-200 transition ${isAnalyzing || !uploadConsentDeclared ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-slate-700"}`}>
             <Upload className="h-4 w-4 text-cyan-400" />
             <span>Subir audio</span>
-            <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} disabled={isAnalyzing} className="hidden" />
+            <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" onChange={handleFileUpload} disabled={isAnalyzing || !uploadConsentDeclared} className="hidden" />
           </label>
         </div>
       </div>
@@ -195,24 +241,25 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
         <div className="space-y-6">
           {/* Main Verdict Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* AASIST Classifier Verdict */}
+            {/* Experimental acoustic classifier result */}
             <div className={`p-5 rounded-xl border flex flex-col justify-between ${
-              analysisResult.acoustic_detection.verdict === "Evidencia de síntesis"
+              analysisResult.acoustic_detection.verdict === "Indicadores compatibles con síntesis"
                 ? "border-rose-500/50 bg-rose-950/20 text-rose-300"
-                : analysisResult.acoustic_detection.verdict === "Evidencia compatible con voz humana"
+                : analysisResult.acoustic_detection.verdict === "Indicadores compatibles con voz humana"
                 ? "border-emerald-500/50 bg-emerald-950/20 text-emerald-300"
                 : "border-amber-500/50 bg-amber-950/20 text-amber-300"
             }`}>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    AASIST Veredicto Acústico
+                    Detector acústico · {analysisResult.acoustic_detection.model_name}
                   </span>
                   <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded border border-white/10">
                     {analysisResult.acoustic_detection.inference_time_ms} ms
                   </span>
                 </div>
                 <div className="text-lg font-black">{analysisResult.acoustic_detection.verdict}</div>
+                <p className="mt-1 text-[10px] text-slate-400">Motor: {analysisResult.acoustic_detection.engine_used}</p>
                 <p className="text-xs mt-2 text-slate-300 leading-snug">
                   {analysisResult.acoustic_detection.technical_interpretation}
                 </p>
@@ -220,14 +267,14 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
 
               {/* Technical Score Display (Uncalibrated) */}
               <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
-                <span>Puntaje Bruto (Logit):</span>
+                <span>Score exploratorio (no calibrado):</span>
                 <span className="text-sm font-bold text-white">
                   {analysisResult.acoustic_detection.raw_score > 0 ? `+${analysisResult.acoustic_detection.raw_score.toFixed(3)}` : analysisResult.acoustic_detection.raw_score.toFixed(3)}
                 </span>
               </div>
             </div>
 
-            {/* PerTh Watermark Verdict */}
+            {/* Provenance marker result */}
             <div className={`p-5 rounded-xl border flex flex-col justify-between ${
               analysisResult.watermark_detection.detected
                 ? "border-purple-500/50 bg-purple-950/20 text-purple-300"
@@ -236,12 +283,12 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Procedencia PerTh
+                    {analysisResult.watermark_detection.method_name}
                   </span>
                   <Fingerprint className="h-4 w-4 text-purple-400" />
                 </div>
                 <div className="text-lg font-black">
-                  {analysisResult.watermark_detection.detected ? "Marca de Agua Detectada" : "Sin Marca PerTh"}
+                  {analysisResult.watermark_detection.detected ? "Firma detectada" : "Firma no detectada"}
                 </div>
                 <p className="text-xs mt-2 text-slate-300 leading-snug">
                   {analysisResult.watermark_detection.interpretation}
@@ -289,7 +336,7 @@ export const AcousticDetectionTab: React.FC<AcousticDetectionTabProps> = ({
               <AudioPlayer
                 isActive={isActive}
                 audioUrl={analysisResult.filename}
-                isSynthetic={analysisResult.acoustic_detection.verdict === "Evidencia de síntesis"}
+                isSynthetic={false}
                 creatorModel={analysisResult.acoustic_detection.model_name}
                 sampleRate={analysisResult.visualization.sample_rate}
                 channels={analysisResult.visualization.channels}

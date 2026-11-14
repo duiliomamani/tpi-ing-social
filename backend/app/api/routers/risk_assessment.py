@@ -1,4 +1,5 @@
 from typing import Optional
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from app.core.config import settings
@@ -20,17 +21,25 @@ class ComprehensiveEvaluationRequest(BaseModel):
 def evaluate_comprehensive_risk(request: ComprehensiveEvaluationRequest):
     """
     Evaluación multicapa completa:
-    Dimensión A (Acústica AASIST) +
-    Dimensión B (Procedencia PerTh) +
-    Dimensión C (Ingeniería Social Gemma) +
-    Dimensión D (Verificación Out-of-band)
+    Dimensiones A/B/C aportan señales exploratorias; D registra manualmente
+    si el operador declara una verificación fuera de banda.
     """
     sample_name = request.sample_name
-    candidate_paths = [
-        settings.AUDIO_SAMPLES_DIR / sample_name,
-        settings.UPLOADS_DIR / sample_name,
-        settings.AUDIO_SAMPLES_DIR / f"{sample_name}.wav"
-    ]
+    safe_name = Path(sample_name).name
+    if not safe_name or safe_name != sample_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nombre de archivo inválido.")
+
+    scenario = scenario_service.get_scenario_by_id(Path(safe_name).stem)
+    if scenario:
+        if not scenario.audio_available:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=scenario.availability_note)
+        candidate_paths = [settings.AUDIO_SAMPLES_DIR / scenario.audio_file]
+    else:
+        candidate_paths = [
+            settings.AUDIO_SAMPLES_DIR / safe_name,
+            settings.UPLOADS_DIR / safe_name,
+            settings.AUDIO_SAMPLES_DIR / f"{safe_name}.wav"
+        ]
     
     target_path = None
     for p in candidate_paths:

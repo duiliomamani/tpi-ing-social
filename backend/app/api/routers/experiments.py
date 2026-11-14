@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.models.schemas import ExperimentResult
 from app.services.experiment_service import experiment_service
 from app.core.database import get_db_connection
+from app.services.scenario_service import scenario_service
 
 router = APIRouter(prefix="/experiments", tags=["Laboratorio Comparativo y Robustez"])
 
@@ -17,31 +18,38 @@ class RunBenchmarkRequest(BaseModel):
 @router.post("/run-benchmark", response_model=ExperimentResult)
 def run_reproducible_benchmark(request: RunBenchmarkRequest):
     """
-    Ejecuta el protocolo comparativo de robustez con FFmpeg sobre 8 muestras normalizadas:
-    - Humano Limpio vs Sintético Limpio
-    - Humano Comprimido MP3 (32k) vs Sintético Comprimido MP3 (32k)
-    - Humano con Ruido Gaussiano vs Sintético con Ruido
-    - Humano con Filtro Telefónico (300Hz-3400Hz) vs Sintético Telefónico
-    Calcula: Matriz de confusión, TP, TN, FP, FN, Precision, Recall, F1, FPR, FNR, EER y curva de error.
+    Ejecuta un benchmark exploratorio sobre C (humana declarada) y A
+    (sintética Piper), cada una bajo cuatro transformaciones FFmpeg.
+    Las ocho variantes derivan de solo dos grabaciones fuente.
     """
-    human_path = settings.AUDIO_SAMPLES_DIR / request.human_sample
-    synth_path = settings.AUDIO_SAMPLES_DIR / request.synthetic_sample
+    if request.human_sample != "scenario_c.wav" or request.synthetic_sample != "scenario_a.wav":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El benchmark actual usa C (humana declarada) y A (sintética Piper); revisa su procedencia local.",
+        )
 
-    if not human_path.exists():
+    human_scenario = scenario_service.get_scenario_by_id("scenario_c")
+    synthetic_scenario = scenario_service.get_scenario_by_id("scenario_a")
+    if not human_scenario or not synthetic_scenario or not human_scenario.audio_available or not synthetic_scenario.audio_available:
+        unavailable = [
+            sample.availability_note
+            for sample in (human_scenario, synthetic_scenario)
+            if sample and not sample.audio_available
+        ]
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Muestra humana '{request.human_sample}' no encontrada en el repositorio."
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No están preparadas las muestras con procedencia declarada requeridas. " + " ".join(unavailable),
         )
-    if not synth_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Muestra sintética '{request.synthetic_sample}' no encontrada en el repositorio."
-        )
+
+    human_path = settings.AUDIO_SAMPLES_DIR / human_scenario.audio_file
+    synth_path = settings.AUDIO_SAMPLES_DIR / synthetic_scenario.audio_file
 
     try:
         return experiment_service.run_comparative_experiment(
             human_sample_path=str(human_path),
-            synth_sample_path=str(synth_path)
+            synth_sample_path=str(synth_path),
+            human_source_description="C, humana según declaración y manifiesto local",
+            synthetic_source_description="A, Piper sintética según manifiesto local",
         )
     except Exception as e:
         raise HTTPException(

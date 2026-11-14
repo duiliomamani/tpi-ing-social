@@ -34,6 +34,7 @@ backend/data/experiments/*
 # Downloaded neural model checkpoints and generated voice samples
 /backend/weights/
 /backend/data/audio_samples/synth_*.wav
+/backend/data/audio_samples/scenario_provenance.json
 
 # OS
 .DS_Store

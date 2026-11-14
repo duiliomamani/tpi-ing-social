@@ -40,8 +40,9 @@ else
     backend/.venv/bin/pip install -r backend/requirements.txt
 fi
 
-# 3. Generar muestras de audio para los 4 escenarios académicos
-echo "[3/4] Generando muestras de audio para los 4 escenarios académicos..."
+# 3. Preparar las muestras sintéticas A/B si Piper y su modelo local están instalados.
+# Las muestras humanas C/D se aportan por separado con consentimiento declarado.
+echo "[3/4] Preparando muestras sintéticas A/B (si los modelos locales están disponibles)..."
 PYTHONPATH=backend backend/.venv/bin/python scripts/generate_demo_samples.py
 
 # 4. Configurar Frontend

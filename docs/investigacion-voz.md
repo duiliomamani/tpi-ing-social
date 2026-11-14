@@ -1,6 +1,6 @@
 # Investigación de clonación de voz
 
-**Revisado:** 11 de noviembre de 2026
+**Revisado:** 14 de noviembre de 2026
 
 ## Lectura del artículo de Rare Build Software
 
@@ -26,6 +26,8 @@ El resto de la tabla del artículo asigna a XTTS v2 facilidad de instalación, b
 ## F5-TTS en el laboratorio
 
 El backend usa `F5TTS.infer()` del paquete oficial `f5-tts`, con una muestra autorizada (`ref_file`), su transcripción literal (`ref_text`) y el texto nuevo (`gen_text`). La interfaz expone los controles que soporta esa API: guía CFG, pasos de inferencia y velocidad. No aplica desplazamiento global de tono ni ecualización LTAS; las mediciones de F₀ son solo diagnósticas.
+
+La generación de ejemplos del Dashboard es independiente de F5-TTS: A/B usan Piper como voces TTS sintéticas de guiones ficticios. C/D ya no se fabrican con Piper ni se etiquetan como humanos automáticamente; requieren grabaciones aportadas con autorización declarada y revisión manual de la transcripción. La app registra esa procedencia local, sin verificarla biométricamente. El estado del detector acústico y sus diferencias frente a la mención de AASIST en el informe se documentan en [`estado-poC-vs-informe.md`](estado-poC-vs-informe.md).
 
 La referencia requiere transcripción porque el modelo compara el audio con las palabras indicadas. Se pueden cargar grabaciones fuente de hasta 10 minutos, escucharlas y marcar manualmente el inicio y el fin de un fragmento continuo de 5–12 segundos. faster-whisper transcribe ese recorte en CPU e int8; así se alinea el audio exacto con el texto enviado a F5 sin tener que transcribir la grabación completa. El clip y su transcripción quedan editables. La primera carga puede descargar el modelo al caché de Hugging Face; el audio permanece en el backend local. Revise el clip, nombres, palabras en otros idiomas y omisiones antes de generar.
 

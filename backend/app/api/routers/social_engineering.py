@@ -6,7 +6,7 @@ from app.models.schemas import SocialEngineeringAnalysisResponse
 from app.services.social_engineering_service import social_engineering_service
 from app.services.transcription_service import transcription_service
 
-router = APIRouter(prefix="/social-engineering", tags=["Análisis Semántico con Gemma 3"])
+router = APIRouter(prefix="/social-engineering", tags=["Análisis Semántico Defensivo"])
 
 class AnalyzeTextRequest(BaseModel):
     transcript: str
@@ -16,7 +16,7 @@ class AnalyzeTextRequest(BaseModel):
 def analyze_text_content(request: AnalyzeTextRequest):
     """
     Ejecuta el análisis defensivo de ingeniería social sobre el texto transcripto
-    mediante Ollama Gemma 3 4B con JSON Schema estricto.
+    mediante Gemma/Ollama cuando está disponible, o el analizador heurístico local de respaldo.
     """
     if not request.transcript.strip():
         raise HTTPException(
@@ -35,7 +35,7 @@ def analyze_text_content(request: AnalyzeTextRequest):
 @router.post("/transcribe-and-analyze/{sample_name}", response_model=SocialEngineeringAnalysisResponse)
 def transcribe_and_analyze_audio(sample_name: str):
     """
-    Pipeline completo: Whisper (transcripción de voz a texto) -> Gemma 3 4B (análisis semántico).
+    Pipeline: faster-whisper (transcripción local) -> Gemma/Ollama o motor heurístico local.
     """
     candidate_paths = [
         settings.AUDIO_SAMPLES_DIR / sample_name,

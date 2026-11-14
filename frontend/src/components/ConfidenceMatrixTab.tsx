@@ -142,12 +142,11 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
       <div className="border-b border-slate-800 pb-4">
         <div className="flex items-center space-x-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-1">
           <Layers className="h-4 w-4" />
-          <span>Matriz de Confianza Multicapa & Análisis Semántico Gemma 3</span>
+          <span>Evaluación Multicapa del Caso</span>
         </div>
         <h2 className="text-2xl font-black text-white">Evaluación Multidimensional de Factores de Riesgo</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Integración de 4 dimensiones: evidencia acústica, marca de procedencia, contenido de la comunicación
-          y verificación de identidad fuera de banda.
+          Separa rasgos acústicos, marca consultada, contenido de la comunicación y el registro manual de una verificación independiente.
         </p>
       </div>
 
@@ -193,11 +192,14 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
                 <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
                   verifiedIdentity ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
                 }`}>
-                  {verifiedIdentity ? "VERIFICADO" : "NO VERIFICADO"}
+                  {verifiedIdentity ? "REGISTRADO" : "SIN REGISTRO"}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
-                ¿Se confirmó la identidad y solicitud llamando al número oficial corporativo preestablecido?
+                ¿El operador confirmó identidad y pedido por un canal independiente ya conocido?
+              </p>
+              <p className="mt-1 text-[10px] text-amber-300/80 leading-tight">
+                VoiceShield no realiza esa llamada: el indicador registra lo que declara quien opera la demo.
               </p>
             </div>
 
@@ -212,7 +214,7 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
                 className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
               />
               <span className="text-xs text-slate-300 font-medium">
-                Identidad confirmada por canal alternativo independiente
+                El operador registró una verificación independiente de identidad y pedido
               </span>
             </label>
           </div>
@@ -263,7 +265,7 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
               setCustomTranscript(e.target.value);
               clearEvaluation();
             }}
-            placeholder="Texto transcripto de la comunicación para análisis semántico con Gemma 3 4B..."
+            placeholder="Texto revisado de la comunicación para análisis semántico..."
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
           />
         </div>
@@ -381,16 +383,16 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
                 <div className="flex items-center space-x-2">
                   <Brain className="h-5 w-5 text-cyan-400" />
                   <span className="text-sm font-bold text-white">
-                    Análisis Semántico de Manipulación Psicológica — Gemma 3 4B
+                    Análisis semántico · {socialAnalysis.analyzer_engine}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 text-xs">
-                  <span className="text-slate-400">Riesgo Semántico:</span>
+                  <span className="text-slate-400">Indicador semántico:</span>
                   <span className="font-mono font-bold text-cyan-300">
                     {socialAnalysis.semantic_risk_score.toFixed(1)}/100 ({socialAnalysis.semantic_risk_level})
                   </span>
                   <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-slate-400 border border-slate-800">
-                    {socialAnalysis.analyzer_engine}
+                    Score no calibrado
                   </span>
                 </div>
               </div>

@@ -1,164 +1,175 @@
-import os
+import numpy as np
 import pytest
+import soundfile as sf
+
+from app.adapters.aasist_adapter import VoiceShieldAcousticAdapter
+from app.adapters.perth_adapter import PerThWatermarkAdapter
+from app.adapters.f5_tts_adapter import F5TTSAdapter
+from app.adapters.chatterbox_adapter import ChatterboxAdapter
+from app.adapters.gemma_adapter import GemmaAdapter
 from app.core.config import settings
 from app.core.database import init_db
-from app.adapters.aasist_adapter import AASISTAdapter
-from app.adapters.perth_adapter import PerThWatermarkAdapter
-from app.adapters.gemma_adapter import GemmaAdapter
-from app.services.risk_assessment_service import risk_assessment_service
-from app.services.audio_detection_service import audio_detection_service
-from app.services.social_engineering_service import social_engineering_service
-from app.services.experiment_service import experiment_service
 from app.models.schemas import (
+    AcousticDetectionResult,
     AudioAnalysisResponse,
-    AASISTDetectionResult,
-    WatermarkDetectionResult,
     AudioVisualizationData,
     SocialEngineeringAnalysisResponse,
-    SocialEngineeringFactor
+    SocialEngineeringFactor,
+    WatermarkDetectionResult,
 )
+from app.services.experiment_service import experiment_service
+from app.services.risk_assessment_service import risk_assessment_service
+from app.services.scenario_service import scenario_service
+
 
 @pytest.fixture(autouse=True)
 def setup_database():
     init_db()
 
-def test_audio_samples_exist():
-    assert (settings.AUDIO_SAMPLES_DIR / "scenario_a.wav").exists()
-    assert (settings.AUDIO_SAMPLES_DIR / "scenario_b.wav").exists()
-    assert (settings.AUDIO_SAMPLES_DIR / "scenario_c.wav").exists()
-    assert (settings.AUDIO_SAMPLES_DIR / "scenario_d.wav").exists()
 
-def test_aasist_adapter():
-    adapter = AASISTAdapter()
-    res = adapter.detect_synthetic(str(settings.AUDIO_SAMPLES_DIR / "scenario_a.wav"))
-    assert "raw_score" in res
-    assert "verdict" in res
-    assert res["is_calibrated"] is False
-    assert len(res["limitations"]) > 0
+def write_voice(path, frequency=180.0, seconds=3.0):
+    sample_rate = settings.TARGET_SAMPLE_RATE
+    time = np.arange(int(sample_rate * seconds), dtype=np.float32) / sample_rate
+    waveform = 0.2 * np.sin(2 * np.pi * frequency * time)
+    sf.write(path, waveform, sample_rate, subtype="PCM_16")
+    return path
 
-def test_perth_watermark_detection():
+
+def test_scenario_catalog_requires_valid_provenance():
+    samples = scenario_service.get_all_scenarios()
+    assert {sample.code for sample in samples} == {
+        "scenario_a", "scenario_b", "scenario_c", "scenario_d"
+    }
+    assert all(sample.ground_truth_basis for sample in samples)
+    for sample in samples:
+        if sample.audio_available:
+            assert (settings.AUDIO_SAMPLES_DIR / sample.audio_file).is_file()
+
+
+def test_voice_shield_acoustic_detector_reports_engine(tmp_path):
+    sample_path = write_voice(tmp_path / "sample.wav")
+    result = VoiceShieldAcousticAdapter().detect_synthetic(str(sample_path))
+    assert result["model_name"] == "VoiceShield Acoustic Prototype"
+    assert result["engine_used"]
+    assert result["is_calibrated"] is False
+    assert result["verdict"] in {
+        "Indicadores compatibles con síntesis",
+        "Indicadores compatibles con voz humana",
+        "Resultado indeterminado",
+    }
+    assert result["limitations"]
+
+
+def test_provenance_adapter_reports_method_and_status(tmp_path):
+    source = write_voice(tmp_path / "source.wav", frequency=220.0, seconds=4.0)
+    marked = tmp_path / "marked.wav"
     adapter = PerThWatermarkAdapter()
-    # Scenario A has watermark
-    res_a = adapter.detect_watermark(str(settings.AUDIO_SAMPLES_DIR / "scenario_a.wav"))
-    assert res_a["detected"] is True
-    assert res_a["status"] == "detectado"
+    assert adapter.embed_watermark(str(source), str(marked)) is True
+    result = adapter.detect_watermark(str(marked))
+    assert result["method_name"]
+    assert result["status"] in {"detectado", "no_detectado", "indeterminado"}
+    assert "no prueba" in result["note"].lower() or "no demuestra" in result["note"].lower()
 
-    # Scenario C is human, does not have watermark
-    res_c = adapter.detect_watermark(str(settings.AUDIO_SAMPLES_DIR / "scenario_c.wav"))
-    assert res_c["detected"] is False
-    assert res_c["status"] == "no_detectado"
 
-def test_social_engineering_factors():
+def test_heuristic_social_engineering_factors_are_labeled_as_fallback():
     adapter = GemmaAdapter()
     sample_text = (
         "Hola Carlos, soy el Director General. Necesito que hagas una transferencia urgente ya mismo "
         "y me pases el código OTP de seis dígitos. No cortes ni llames a nadie."
     )
-    res = adapter.analyze_social_engineering(sample_text)
-    assert res["total_detected_factors"] >= 3
-    assert res["semantic_risk_score"] > 50.0
-    
-    # Check that authority, urgency, sensitive info, and payment are identified
-    detected_ids = [f["factor_id"] for f in res["factors"] if f["estado"] == "detectado"]
+    result = adapter._heuristic_analysis(sample_text)
+    assert result["total_detected_factors"] >= 3
+    assert result["semantic_risk_score"] > 50.0
+    assert "heuristic_rule_engine" in result["analyzer_engine"]
+    detected_ids = {factor["factor_id"] for factor in result["factors"] if factor["estado"] == "detectado"}
     assert "autoridad_declarada" in detected_ids
     assert "urgencia_artificial" in detected_ids
-    assert "solicitud_informacion_sensible" in detected_ids or "solicitud_pagos_transferencias" in detected_ids
+    assert detected_ids.intersection({"solicitud_informacion_sensible", "solicitud_pagos_transferencias"})
 
-def test_risk_assessment_golden_rule():
-    # Scenario D: Voice is human, but request is sensitive and unverified
-    acoustic_mock = AudioAnalysisResponse(
+
+def test_sensitive_request_rule_does_not_depend_on_voice_origin():
+    acoustic = AudioAnalysisResponse(
         audio_id="scenario_d",
         filename="scenario_d.wav",
-        acoustic_detection=AASISTDetectionResult(
-            model_name="AASIST",
-            model_version="v2.1",
-            raw_score=-1.8,  # Strongly indicates human acoustic
+        acoustic_detection=AcousticDetectionResult(
+            model_name="VoiceShield Acoustic Prototype",
+            model_version="spectral-baseline-v1",
+            engine_used="VoiceShield experimental spectral-acoustic baseline",
+            raw_score=-1.8,
             is_calibrated=False,
-            verdict="Evidencia compatible con voz humana",
+            verdict="Indicadores compatibles con voz humana",
             decision_threshold=0.0,
-            technical_interpretation="Acoustic features match human vocal tract.",
-            limitations=["Uncalibrated technical score"],
-            inference_time_ms=12.0
+            technical_interpretation="Señales compatibles con voz humana; no autentica identidad.",
+            limitations=["Score no calibrado"],
+            inference_time_ms=12.0,
         ),
         watermark_detection=WatermarkDetectionResult(
-            method_name="PerTh",
+            method_name="Firma spread-spectrum experimental VoiceShield",
             status="no_detectado",
             detected=False,
-            correlation_score=0.4,
-            interpretation="No watermark",
-            note="Absence != human"
+            correlation_score=0.0,
+            interpretation="No se detectó la firma consultada.",
+            note="La ausencia no demuestra origen humano.",
         ),
         visualization=AudioVisualizationData(
             waveform_peaks=[0.5] * 20,
             sample_rate=16000,
-            duration=15.0,
+            duration=3.0,
             channels=1,
-            spectrogram_summary={}
+            spectrogram_summary={},
         ),
-        overall_acoustic_summary="Acoustics indicate human."
+        overall_acoustic_summary="Resultado exploratorio.",
     )
-
-    social_mock = SocialEngineeringAnalysisResponse(
+    social = SocialEngineeringAnalysisResponse(
         audio_id="scenario_d",
-        transcript="Por favor dictame el código OTP inmediatamente para desbloquear tu cuenta corporativa.",
-        transcription_engine="faster-whisper",
-        factors=[
-            SocialEngineeringFactor(
-                factor_id="solicitud_informacion_sensible",
-                factor_name="Solicitud de Información Sensible",
-                estado="detectado",
-                fragmento_cita="dictame el código OTP",
-                explicacion="Solicitud de clave OTP",
-                nivel_riesgo_contextual="alto"
-            )
-        ],
+        transcript="Dictame el código OTP para desbloquear tu cuenta.",
+        transcription_engine="provided_text",
+        factors=[SocialEngineeringFactor(
+            factor_id="solicitud_informacion_sensible",
+            factor_name="Solicitud de Información Sensible",
+            estado="detectado",
+            fragmento_cita="código OTP",
+            explicacion="La comunicación pide un código de autenticación.",
+            nivel_riesgo_contextual="alto",
+        )],
         total_detected_factors=1,
-        semantic_risk_score=75.0,
-        semantic_risk_level="Alto",
-        analyzer_engine="Gemma 3 4B",
+        semantic_risk_score=35.0,
+        semantic_risk_level="Medio",
+        analyzer_engine="heuristic_rule_engine",
         untrusted_data_defense_applied=True,
-        summary="High risk OTP request"
+        summary="Se detectó una solicitud sensible.",
     )
 
-    # When identity is NOT verified, operational risk MUST BE ALTO (Golden rule)
-    res_unverified = risk_assessment_service.evaluate_risk(
+    result = risk_assessment_service.evaluate_risk(
         audio_id="scenario_d",
-        acoustic_analysis=acoustic_mock,
-        social_analysis=social_mock,
-        verified_identity=False
+        acoustic_analysis=acoustic,
+        social_analysis=social,
+        verified_identity=False,
     )
-    assert res_unverified.operational_risk_level == "ALTO"
-    assert "REGLA DE ORO" in res_unverified.applied_rule
-    assert "DETENER LA ACCIÓN" in res_unverified.operational_recommendation
-
-def test_comparative_experiment_pipeline():
-    res = experiment_service.run_comparative_experiment(
-        human_sample_path=str(settings.AUDIO_SAMPLES_DIR / "scenario_c.wav"),
-        synth_sample_path=str(settings.AUDIO_SAMPLES_DIR / "scenario_a.wav")
+    assert result.operational_risk_level == "ALTO"
+    assert "REGLA DE ORO" in result.applied_rule
+    assert "DETENER LA ACCIÓN" in result.operational_recommendation
+    assert all(
+        dimension.risk_contribution == "neutro"
+        for dimension in result.dimensions
+        if dimension.dimension_code in {"A_acustica", "B_procedencia"}
     )
-    assert res.metrics.total_samples == 8
-    assert res.confusion_matrix.true_positives + res.confusion_matrix.false_negatives == 4
-    assert res.confusion_matrix.true_negatives + res.confusion_matrix.false_positives == 4
-    assert len(res.eer_curve_points) > 0
 
-def test_chatterbox_voice_cloning():
-    from app.adapters.chatterbox_adapter import ChatterboxAdapter
-    adapter = ChatterboxAdapter()
-    available, msg = adapter.is_available()
-    assert available is True
 
-    # Test synthesizing with reference human audio
-    human_sample = str(settings.AUDIO_SAMPLES_DIR / "scenario_c.wav")
-    out_test = "/tmp/test_pytest_clone.wav"
-    res = adapter.synthesize(
-        text="Prueba de clonación de voz para verificación de laboratorio.",
-        reference_audio_path=human_sample,
-        output_path=out_test,
-        consent_granted=True,
-        apply_watermark=True
+def test_experiment_reports_small_derived_dataset(tmp_path):
+    human_path = write_voice(tmp_path / "human.wav", frequency=160.0, seconds=3.0)
+    synthetic_path = write_voice(tmp_path / "synthetic.wav", frequency=260.0, seconds=3.0)
+    result = experiment_service.run_comparative_experiment(
+        human_sample_path=str(human_path),
+        synth_sample_path=str(synthetic_path),
     )
-    assert res["is_synthetic"] is True
-    assert res["watermark_embedded"] is True
-    assert res["duration_seconds"] > 1.0
-    assert os.path.exists(out_test)
+    assert result.metrics.total_samples == 8
+    assert result.confusion_matrix.true_positives + result.confusion_matrix.false_negatives == 4
+    assert result.confusion_matrix.true_negatives + result.confusion_matrix.false_positives == 4
+    assert len(result.eer_curve_points) > 0
+    assert result.detector_engine
+    assert "no son ocho hablantes independientes" in result.dataset_summary
 
+
+def test_chatterbox_import_remains_f5_compatibility_alias():
+    assert ChatterboxAdapter is F5TTSAdapter

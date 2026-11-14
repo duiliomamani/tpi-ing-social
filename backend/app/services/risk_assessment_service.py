@@ -22,25 +22,23 @@ class RiskAssessmentService:
         dimensions: List[DimensionEvidence] = []
 
         # ---------------------------------------------
-        # Dimensión A: Evidencia Acústica (AASIST)
+        # Dimensión A: Clasificación acústica exploratoria.
+        # La señal describe el audio; no determina si la comunicación es maliciosa.
         # ---------------------------------------------
         aasist = acoustic_analysis.acoustic_detection
-        if aasist.verdict == "Evidencia de síntesis":
-            dim_a_risk = "critico" if aasist.raw_score > 1.5 else "alto"
-            dim_a_summary = f"Firma acústica sintética detectada (Score AASIST: {aasist.raw_score:+.3f})"
-        elif aasist.verdict == "Evidencia compatible con voz humana":
-            dim_a_risk = "bajo"
-            dim_a_summary = f"Características acústicas biológicas plausibles (Score AASIST: {aasist.raw_score:+.3f})"
+        if aasist.verdict == "Indicadores compatibles con síntesis":
+            dim_a_summary = f"El detector experimental observa rasgos compatibles con síntesis (score: {aasist.raw_score:+.3f})"
+        elif aasist.verdict == "Indicadores compatibles con voz humana":
+            dim_a_summary = f"El detector experimental observa rasgos compatibles con voz humana (score: {aasist.raw_score:+.3f})"
         else:
-            dim_a_risk = "medio"
-            dim_a_summary = f"Patrones acústicos indeterminados (Score AASIST: {aasist.raw_score:+.3f})"
+            dim_a_summary = f"El detector no separa el audio con claridad (score: {aasist.raw_score:+.3f})"
 
         dimensions.append(DimensionEvidence(
             dimension_code="A_acustica",
-            dimension_name="Evidencia Acústica Forense (AASIST)",
+            dimension_name="Detector Acústico Experimental",
             indicator_summary=dim_a_summary,
-            risk_contribution=dim_a_risk,
-            technical_detail=aasist.technical_interpretation
+            risk_contribution="neutro",
+            technical_detail=f"{aasist.engine_used}. {aasist.technical_interpretation}"
         ))
 
         # ---------------------------------------------
@@ -48,17 +46,15 @@ class RiskAssessmentService:
         # ---------------------------------------------
         wm = acoustic_analysis.watermark_detection
         if wm.detected:
-            dim_b_risk = "critico"
-            dim_b_summary = f"Marca de agua de sintetizador identificada (Índice PerTh: {wm.correlation_score:.2f})"
+            dim_b_summary = f"Firma compatible con la marca configurada detectada (score: {wm.correlation_score:.2f})"
         else:
-            dim_b_risk = "neutro"
-            dim_b_summary = "Sin marcas de agua conocidas detectadas en el espectro"
+            dim_b_summary = "No se encontró la firma consultada; esto no demuestra origen humano"
 
         dimensions.append(DimensionEvidence(
             dimension_code="B_procedencia",
-            dimension_name="Evidencia de Procedencia y Firma (PerTh)",
+            dimension_name=f"Marca de procedencia ({wm.method_name})",
             indicator_summary=dim_b_summary,
-            risk_contribution=dim_b_risk,
+            risk_contribution="neutro",
             technical_detail=wm.interpretation
         ))
 
@@ -71,11 +67,6 @@ class RiskAssessmentService:
             f.factor_id in ["solicitud_informacion_sensible", "solicitud_pagos_transferencias"]
             for f in detected_factors
         )
-        urgency_or_authority = any(
-            f.factor_id in ["urgencia_artificial", "autoridad_declarada", "amenazas_consecuencias_negativas"]
-            for f in detected_factors
-        )
-
         if sem_score >= 65.0:
             dim_c_risk = "critico" if sem_score >= 80.0 else "alto"
         elif sem_score >= 30.0:
@@ -90,7 +81,7 @@ class RiskAssessmentService:
 
         dimensions.append(DimensionEvidence(
             dimension_code="C_ingenieria_social",
-            dimension_name="Análisis de Ingeniería Social (Gemma 3 4B)",
+            dimension_name=f"Análisis de Ingeniería Social ({social_analysis.analyzer_engine})",
             indicator_summary=dim_c_summary,
             risk_contribution=dim_c_risk,
             technical_detail=social_analysis.summary
@@ -101,17 +92,20 @@ class RiskAssessmentService:
         # ---------------------------------------------
         if verified_identity:
             dim_d_risk = "bajo"
-            dim_d_summary = "Identidad y autorización confirmadas por canal fuera de banda confiable"
+            dim_d_summary = "El operador registró que verificó identidad por un canal independiente"
         else:
             dim_d_risk = "alto" if sensitive_request else "medio"
-            dim_d_summary = "Identidad NO verificada por canal alternativo independiente"
+            dim_d_summary = "El operador no registró una verificación independiente de identidad"
 
         dimensions.append(DimensionEvidence(
             dimension_code="D_verificacion_identidad",
             dimension_name="Verificación Fuera de Banda (Out-of-Band)",
             indicator_summary=dim_d_summary,
             risk_contribution=dim_d_risk,
-            technical_detail="Confirmación mediante llamada inversa a número corporativo registrado o clave preacordada."
+            technical_detail=(
+                "Es una declaración manual de la sesión; el laboratorio no realiza ni comprueba la llamada inversa. "
+                "La organización debe usar un número registrado o un procedimiento preacordado."
+            )
         ))
 
         # ---------------------------------------------
@@ -120,78 +114,63 @@ class RiskAssessmentService:
         action_protocol: List[str] = []
         applied_rule: str = ""
 
-        # REGLA 1: Síntesis confirmada (Acústica crítica o Watermark presente)
-        if wm.detected or aasist.verdict == "Evidencia de síntesis":
-            operational_level = "CRITICO"
-            applied_rule = "REGLA-01: Evidencia concluyente de voz artificial generada por IA."
-            operational_recommendation = (
-                "INTERRUMPIR LA COMUNICACIÓN INMEDIATAMENTE. Se detectó síntesis de voz automatizada "
-                "con suplantación activa de identidad."
-            )
-            action_protocol = [
-                "1. Colgar la llamada de inmediato sin brindar confirmación alguna.",
-                "2. Reportar el incidente al Equipo de Respuesta a Incidentes (CSIRT / SOC).",
-                "3. Contactar a la persona supuestamente emisora por un canal institucional alternativo para alertarla.",
-                "4. Preservar la grabación para análisis forense del laboratorio."
-            ]
-
-        # REGLA 2: Regla de Oro — Petición sensible sin verificación fuera de banda
-        elif sensitive_request and not verified_identity:
+        # Regla 1: la acción sensible requiere el flujo formal, con independencia del tipo de voz.
+        if sensitive_request:
             operational_level = "ALTO"
-            applied_rule = "REGLA DE ORO (DEFENSA EN PROFUNDIDAD): Solicitud crítica sin validación fuera de banda."
+            applied_rule = "REGLA DE ORO (REGLA-01): solicitud sensible; aplicar el procedimiento formal."
             operational_recommendation = (
-                "DETENER LA ACCIÓN Y CONFIRMAR POR CANAL INDEPENDIENTE. Aunque los modelos acústicos no sean concluyentes "
-                "o la voz suene natural, la presencia de solicitudes sensibles sin verificación out-of-band impone máxima cautela."
+                "DETENER LA ACCIÓN. No compartir códigos, contraseñas o tokens ni autorizar una transferencia durante la llamada. "
+                "Detener la acción y continuar por el canal institucional aprobado; la clasificación de voz no cambia este criterio."
             )
             action_protocol = [
-                "1. No entregar contraseñas, códigos OTP, ni autorizar transferencias bajo ninguna circunstancia.",
-                "2. Informar al interlocutor que la política exige validación por canal alternativo.",
-                "3. Cortar la llamada y marcar al número oficial preestablecido de la organización.",
-                "4. Solicitar autorización formal por el sistema de tickets corporativo."
+                "1. No dictar códigos OTP, contraseñas, claves ni tokens por teléfono.",
+                "2. No ejecutar pagos o transferencias por una instrucción recibida en la llamada.",
+                "3. Cerrar la comunicación y contactar al supuesto emisor por un número oficial ya registrado.",
+                "4. Completar la operación únicamente mediante el flujo formal de autorización de la organización."
             ]
 
-        # REGLA 3: Alta manipulación psicológica detectada
+        # Regla 2: riesgo elevado estimado a partir del contenido de la transcripción.
         elif sem_score >= 60.0:
             operational_level = "ALTO"
-            applied_rule = "REGLA-03: Alta densidad de vectores de manipulación y presión psicológica."
+            applied_rule = "REGLA-02: Indicadores semánticos elevados; revisar transcripción y contexto."
             operational_recommendation = (
-                "COMUNICACIÓN SOSPECHOSA DE VISHING. Se detectaron múltiples indicadores de urgencia artificial, "
-                "intento de evitar canales o presión emocional."
+                "La transcripción presenta varios indicadores de posible ingeniería social. Revisá el texto y el contexto antes de actuar."
             )
             action_protocol = [
-                "1. Rechazar peticiones fuera de procedimiento ordinario.",
-                "2. Verificar la legitimidad del requerimiento con la jefatura directa.",
-                "3. Documentar la llamada."
+                "1. Pausar cualquier decisión solicitada durante la llamada.",
+                "2. Corroborar el pedido con el área responsable mediante un canal conocido.",
+                "3. Reportar el intento según el procedimiento interno."
             ]
 
-        # REGLA 4: Incertidumbre acústica o sospecha moderada
+        # Regla 3: la falta de verificación y la incertidumbre piden cautela, no una atribución.
         elif aasist.verdict == "Resultado indeterminado" or not verified_identity:
             operational_level = "MEDIO"
-            applied_rule = "REGLA-04: Incertidumbre acústica y canal no autenticado."
+            applied_rule = "REGLA-03: Canal sin verificación registrada o evidencia acústica indeterminada."
             operational_recommendation = (
-                "PROCEDER CON PRECAUCIÓN. No se observan alertas críticas inmediatas, pero el canal carece de "
-                "verificación robusta."
+                "La sesión no registra una verificación independiente o el detector acústico quedó indeterminado. "
+                "No tomes el resultado como autenticación del hablante."
             )
             action_protocol = [
-                "1. Evitar compartir información confidencial no pública.",
-                "2. Requerir envío de correo corporativo firmado o ticket antes de actuar."
+                "1. Evitar compartir información confidencial o ejecutar cambios durante la llamada.",
+                "2. Confirmar el pedido en el directorio o sistema institucional ya conocido."
             ]
 
-        # REGLA 5: Comunicación legítima y verificada
+        # Regla 4: ausencia de alertas en este análisis no prueba legitimidad.
         else:
             operational_level = "BAJO"
-            applied_rule = "REGLA-05: Parámetros dentro del perfil de comunicación ordinaria verificada."
+            applied_rule = "REGLA-04: No se activaron criterios de cautela en esta evaluación."
             operational_recommendation = (
-                "RIESGO BAJO EVALUADO. Parámetros normales y sin indicios de manipulación maliciosa ni síntesis."
+                "No se activaron criterios de cautela con los datos analizados. Este resultado no demuestra legitimidad ni identidad."
             )
             action_protocol = [
-                "1. Continuar el procedimiento habitual conforme a las políticas de seguridad de la organización."
+                "1. Continuar solo por los procedimientos habituales de la organización.",
+                "2. Tratar cualquier evidencia de síntesis como una característica de la voz, no como prueba de fraude."
             ]
 
         scientific_disclaimer = (
-            "Este resultado es una recomendación operacional defensiva basada en la combinación heurística "
-            "y de modelos de 4 dimensiones. No constituye una certeza matemática ni reemplaza el criterio "
-            "del analista de ciberseguridad."
+            "Evaluación exploratoria basada en señales acústicas, marca consultada, transcripción y una casilla "
+            "de verificación declarada por el operador. Las señales de voz no determinan intención o identidad; "
+            "los scores no están calibrados y el sistema no realiza la verificación fuera de banda."
         )
 
         response = MultilayerRiskAssessmentResponse(

@@ -1,6 +1,6 @@
 # VoiceShield Lab 🛡️
 
-**Laboratorio de Clonación de Voz y Análisis de Audio**
+**Laboratorio de generación autorizada de voz y análisis de audio**
 
 *Generación de voz autorizada, detección acústica y análisis de riesgo en comunicaciones.*
 Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
@@ -11,14 +11,14 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 
 **VoiceShield Lab** es una Proof of Concept (PoC) académica para experimentar con la generación autorizada de voz y evaluar audios desde varias capas:
 
-1. **Generación:** Síntesis directa en español con **F5-TTS**, condicionada por una muestra de voz autorizada y su transcripción literal. El laboratorio puede agregar su marca PerTh después de la generación; F₀ es una medición diagnóstica y no se fuerza a un valor exacto.
+1. **Generación:** Síntesis en español con **F5-TTS**, condicionada por una referencia cuya autorización declara el operador y su transcripción revisada. F₀ es una medición diagnóstica; no se fuerza una frecuencia exacta.
 2. **Análisis de Audio:** Evaluación de muestras propias y audios de referencia con detección acústica, marcas de procedencia y experimentos de robustez.
 3. **Evaluación Multicapa:** Panel de análisis en 4 dimensiones:
-   - **Dimensión A (Acústica):** Clasificador de deepfakes de audio **AASIST** (scores crudos no calibrados).
-   - **Dimensión B (Procedencia):** Detección de marcas de agua psicoacústicas **PerTh**.
-   - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y análisis semántico de 8 factores de manipulación mediante **Gemma 3 4B (Ollama)**.
-   - **Dimensión D (Verificación Out-of-Band):** Regla de oro operacional ante solicitudes sensibles.
-4. **Laboratorio Comparativo:** Benchmark reproducible con **FFmpeg** evaluando la degradación de los detectores ante compresión MP3, ruido y filtros telefónicos de banda estrecha (PSTN / G.711).
+   - **Dimensión A (Acústica):** Baseline experimental de VoiceShield; no es la implementación oficial ni un checkpoint preentrenado de AASIST. Sus scores no están calibrados.
+   - **Dimensión B (Procedencia):** PerthNet si está instalado; si no, una firma spread-spectrum experimental propia. La detección no acredita identidad, intención ni origen por sí sola.
+   - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y evaluación de 8 factores con **Gemma 3 (Ollama)** o un motor heurístico local de respaldo. El score semántico tampoco es una probabilidad calibrada.
+   - **Dimensión D (Verificación Out-of-Band):** Registro manual del operador. La aplicación no llama al contacto ni autentica su identidad.
+4. **Laboratorio Comparativo:** Experimento exploratorio con **FFmpeg** sobre dos audios fuente y cuatro condiciones. Reporta las mediciones observadas; no presupone degradación ni estima el desempeño en producción.
 5. **Modo Exposición Universitaria:** Guía interactiva paso a paso para la defensa oral del proyecto.
 
 ---
@@ -30,10 +30,10 @@ tpi-ing-social/
 ├── backend/
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
-│   │   │   ├── aasist_adapter.py      # Red AASIST (PyTorch + Forense)
+│   │   │   ├── aasist_adapter.py      # Baseline acústico experimental de VoiceShield
 │   │   │   ├── f5_tts_adapter.py      # F5-TTS español condicionado por audio y transcripción
-│   │   │   ├── gemma_adapter.py       # Ollama Gemma 3 4B + Prompt Defense
-│   │   │   ├── perth_adapter.py       # Spread Spectrum Watermark
+│   │   │   ├── gemma_adapter.py       # Ollama Gemma + fallback heurístico por reglas
+│   │   │   ├── perth_adapter.py       # PerthNet opcional + firma experimental de respaldo
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
 │   │   ├── api/routers/       # Endpoints REST (FastAPI)
 │   │   ├── core/              # Configuración y base de datos SQLite
@@ -41,20 +41,20 @@ tpi-ing-social/
 │   │   ├── services/          # Lógica de negocio independiente
 │   │   └── main.py            # Entrypoint API
 │   ├── data/
-│   │   ├── audio_samples/     # Muestras pregeneradas para análisis y benchmarks
+│   │   ├── audio_samples/     # Casos A-D con manifiesto local de procedencia
 │   │   ├── uploads/           # Grabaciones y archivos temporales
 │   │   └── experiments/       # Muestras procesadas con FFmpeg
 │   ├── tests/                 # Suite de pruebas unitarias y de integración
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── app/               # Next.js 14 App Router
+│   │   ├── app/               # Next.js App Router
 │   │   ├── components/        # Dashboard, clonación, detección y análisis
 │   │   └── lib/               # Clientes API y tipos TypeScript
 │   ├── package.json
 │   └── tailwind.config.js
 ├── scripts/
-│   ├── generate_demo_samples.py  # Generador de audios para Escenarios A/B/C/D
+│   ├── generate_demo_samples.py  # Genera A/B TTS y registra C/D humanos consentidos
 │   ├── setup_environment.sh      # Instalación automática
 │   ├── start_all.sh              # Lanzador dual Backend + Frontend
 │   ├── run_backend.sh            # Inicia servidor FastAPI
@@ -74,7 +74,7 @@ tpi-ing-social/
 - **Ollama (Opcional pero recomendado para inferencia LLM real):**
   - Descargar de [ollama.com](https://ollama.com)
   - Descargar modelo: `ollama pull gemma3:4b`
-  - *Nota:* Si Ollama no está en ejecución, el backend conmuta automáticamente a un motor semántico de contingencia basado en reglas para garantizar operatividad continua.
+  - *Nota:* Si Ollama no está disponible, se ejecuta un analizador heurístico local. Es una alternativa de menor alcance, no equivalente a Gemma; la interfaz identifica el motor usado.
 
 ---
 
@@ -87,7 +87,7 @@ cd tpi-ing-social
 ```
 
 ### 2. Configuración Rápida Automática
-Ejecute el script de configuración integral (prepara entornos virtuales, dependencias y genera las muestras de audio):
+Ejecute el script de configuración integral (prepara entornos virtuales y dependencias; las muestras Piper se generan solo si el modelo está instalado):
 ```bash
 ./scripts/setup_environment.sh
 ```
@@ -110,7 +110,11 @@ backend/.venv/bin/python scripts/download_f5_spanish.py
 
 El checkpoint pesa aproximadamente 1.35 GB y queda en `backend/weights/f5-spanish`. El backend también descarga el vocoder oficial Vocos la primera vez que carga F5-TTS. Puede cargar una grabación fuente de hasta 10 minutos, escucharla y seleccionar manualmente un fragmento de 5–12 segundos. faster-whisper transcribe localmente ese recorte y su texto queda editable para corregirlo antes de generar. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis del artículo comparativo, KikiVoice, F5-TTS y las limitaciones de calidad y licencia.
 
-En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`. La demo usa 16 pasos por defecto, pasa a F5 solo referencias de hasta 12 s con transcripción alineada y limita la duración proyectada de cada inferencia a 30 s; cada proceso permite una generación simultánea para proteger la memoria local. La transcripción empieza cuando se confirma el recorte; la primera carga del modelo puede tardar.
+En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`. La demo usa 16 pasos por defecto, pasa a F5 referencias de hasta 12 s y limita la duración proyectada de cada inferencia a 30 s. Reducir pasos puede reducir el tiempo y también afectar la calidad; más pasos no garantizan una voz más natural. La inferencia se ejecuta localmente cuando ya se descargaron los pesos.
+
+La casilla de consentimiento es una declaración del operador: la aplicación no comprueba quién aparece en el audio ni si esa persona autorizó el uso. No se integra KikiVoice ni se envían referencias a servicios de clonación en la nube.
+
+El generador A/B necesita Piper en `backend/.venv/bin/piper` y la voz española `es_ES-davefx-medium.onnx` en `backend/weights/piper/`; el repositorio no distribuye ese binario ni esos pesos. Si faltan, la preparación se omite y el catálogo informa que los WAV no están disponibles.
 
 ---
 
@@ -162,43 +166,49 @@ npm run dev
 
 ---
 
-## 🔊 Muestras Pregrabadas de Evaluación
+## 🔊 Muestras de Evaluación y Procedencia
 
-El laboratorio incluye cuatro audios de referencia para comparar detectores, evaluar la matriz de riesgo y ejecutar el benchmark. Son muestras fijas del conjunto académico; el flujo principal para probar una clonación nueva es generarla en el laboratorio y cargar el resultado en Detección Acústica.
+El catálogo define cuatro escenarios, pero no inventa grabaciones humanas. A/B pueden generarse localmente con Piper como voces sintéticas de guiones ficticios. C/D requieren grabaciones de participantes con autorización declarada; el laboratorio no puede comprobar automáticamente que el origen sea humano. Las muestras se ofrecen como casos etiquetados solo cuando el archivo y el manifiesto local de procedencia coinciden.
 
 | Muestra | Nombre | Tipo de Voz | Contenido | Vector Evaluado |
 | :--- | :--- | :--- | :--- | :--- |
-| **A** | Suplantación Directiva | Sintética pregenerada | Maliciosa | Autoridad invocada, urgencia inmediata y evasión de ticket formal. |
-| **B** | Urgencia Emocional | Sintética pregenerada | Maliciosa | Explotación de afecto/miedo (retenido en aduana aeroportuaria pidiendo dinero). |
-| **C** | Comunicación Legítima | Biológica Humana | Benigna (Control) | Control negativo sin manipulación ni peticiones sensibles. |
-| **D** | Falso Soporte TI (OTP) | Voz humana | Maliciosa | Demuestra que **el fraude telefónico no requiere IA para ser crítico**. |
+| **A** | Suplantación de autoridad | Piper TTS sintético | Guion malicioso ficticio | Autoridad, urgencia y evasión de canales formales. |
+| **B** | Urgencia emocional | Piper TTS sintético | Guion malicioso ficticio | Presión emocional y solicitud de dinero. |
+| **C** | Comunicación legítima | Grabación humana consentida requerida | Guion benigno | Control humano-legítimo, si se aporta y registra la grabación. |
+| **D** | Solicitud de OTP | Grabación humana consentida requerida | Guion malicioso ficticio | Control de vishing humano, si se aporta y registra la grabación. |
+
+Para preparar el catálogo completo, grabá C y D con autorización, diciendo exactamente sus textos del catálogo, y ejecutá:
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/generate_demo_samples.py \
+  --human-legitimate /ruta/consentida/c.wav \
+  --human-malicious /ruta/consentida/d.wav \
+  --consent-confirmed \
+  --transcripts-reviewed
+```
+
+El manifiesto registra hashes y las declaraciones del operador sobre consentimiento y revisión del texto; no las verifica biométrica ni legalmente. Sin C no se ejecuta el benchmark. La matriz de escenarios no es un factorial 2×2 completo: falta una muestra sintética con intención legítima; puede crearse como control durante la demo con una referencia autorizada.
 
 ---
 
 ## 🧪 Ejecución de Pruebas Automatizadas
 
-El proyecto cuenta con una suite completa de pruebas unitarias y de integración:
+La suite de `backend/tests/test_backend.py` verifica el catálogo y los contratos del detector, la marca, el análisis semántico y el benchmark sobre audios temporales. El benchmark requiere FFmpeg. No ejecuta la síntesis F5-TTS ni descarga modelos:
 ```bash
 PYTHONPATH=backend backend/.venv/bin/pytest backend/tests/test_backend.py -v
 ```
-Pruebas verificadas:
-- `test_audio_samples_exist`: Integridad de los archivos WAV de prueba.
-- `test_aasist_adapter`: Evaluación técnica de scores acústicos no calibrados.
-- `test_perth_watermark_detection`: Detección coherente de marca de agua spread-spectrum.
-- `test_social_engineering_factors`: Extracción de factores de manipulación semántica.
-- `test_risk_assessment_golden_rule`: Verificación estricta de la Regla de Oro (Muestra D).
-- `test_comparative_experiment_pipeline`: Protocolo de robustez con perturbaciones FFmpeg y cálculo de EER.
+La ejecución de la suite no implica validar el modelo oficial AASIST, exactitud de etiquetas humanas ni rendimiento de producción. Las pruebas no se ejecutaron como parte de esta adaptación.
 
 ---
 
 ## ⚖️ Marco Ético y Privacidad
 
-1. **Consentimiento Obligatorio:** El módulo de clonación rechaza de forma estricta cualquier procesamiento si el usuario no marca la casilla de autorización legal informada.
-2. **Prohibición de Deepfakes de Figuras Públicas:** No se permite emplear identidades de funcionarios o celebridades.
-3. **Saneamiento Biométrico:** La aplicación cuenta con un botón de **Purgado Ético** (`/api/admin/clear-lab-data`) para destruir todas las grabaciones temporales y metadatos una vez concluida la evaluación.
+1. **Autorización declarada:** El módulo requiere que el operador confirme autorización antes de generar. No comprueba identidad, derechos o consentimiento de forma técnica.
+2. **Uso académico:** Usar referencias propias o de participantes que autorizaron el ejercicio. La restricción sobre figuras públicas es una política de uso, no un control técnico de identidad.
+3. **Limpieza de sesión:** El endpoint `/api/admin/clear-lab-data` elimina cargas, clones generados, derivados experimentales, metadatos locales y C/D registrados como grabaciones humanas. Conserva A/B sintéticos. El borrado normal de archivos no garantiza eliminación forense y no borra informes JSON descargados por el navegador.
 
 ---
 
 ## 📚 Documentación de Limitaciones
 
-Consulte el archivo [`LIMITATIONS.md`](file:///Users/duiliomamani/dev/facultad/lic-seg-inf/ing-social/tpi-ing-social/LIMITATIONS.md) para un desglose exhaustivo de las limitaciones de AASIST ante canales telefónicos PSTN, la no-universalidad de las marcas de agua y la defensa en profundidad.
+Consulte [`LIMITATIONS.md`](LIMITATIONS.md) y [`docs/estado-poC-vs-informe.md`](docs/estado-poC-vs-informe.md) para el alcance real, las limitaciones de los modelos, la procedencia de las muestras y las diferencias metodológicas frente al informe presentado.

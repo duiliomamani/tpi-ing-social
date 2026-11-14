@@ -16,12 +16,14 @@ from app.core.database import get_db_connection
 
 class ExperimentService:
     def __init__(self):
-        self.aasist = audio_detection_service.aasist_adapter
+        self.acoustic_detector = audio_detection_service.acoustic_adapter
 
     def run_comparative_experiment(
         self,
         human_sample_path: str,
-        synth_sample_path: str
+        synth_sample_path: str,
+        human_source_description: str = "muestra humana declarada por el llamador",
+        synthetic_source_description: str = "muestra sintética declarada por el llamador",
     ) -> ExperimentResult:
         """
         Ejecuta el protocolo de robustez experimental reproducible.
@@ -43,7 +45,8 @@ class ExperimentService:
         for cond in conditions:
             # 1. Humano
             h_out = str(exp_dir / f"human_{cond}.wav")
-            apply_ffmpeg_perturbation(human_sample_path, h_out, cond)
+            if not apply_ffmpeg_perturbation(human_sample_path, h_out, cond):
+                raise RuntimeError(f"FFmpeg no pudo preparar la variante humana: {cond}")
             test_samples.append({
                 "condition": cond,
                 "ground_truth": "human",
@@ -53,7 +56,8 @@ class ExperimentService:
 
             # 2. Sintético
             s_out = str(exp_dir / f"synth_{cond}.wav")
-            apply_ffmpeg_perturbation(synth_sample_path, s_out, cond)
+            if not apply_ffmpeg_perturbation(synth_sample_path, s_out, cond):
+                raise RuntimeError(f"FFmpeg no pudo preparar la variante sintética: {cond}")
             test_samples.append({
                 "condition": cond,
                 "ground_truth": "synthetic",
@@ -61,10 +65,12 @@ class ExperimentService:
                 "label": f"Voz Sintética — {cond}"
             })
 
-        # Ejecutar AASIST en cada muestra real
+        # Ejecutar el detector acústico experimental en cada variante.
         scores_data = []
+        detector_engine = ""
         for sample in test_samples:
-            detection = self.aasist.detect_synthetic(sample["filepath"])
+            detection = self.acoustic_detector.detect_synthetic(sample["filepath"])
+            detector_engine = detection["engine_used"]
             score = detection["raw_score"]
             scores_data.append({
                 "condition": sample["condition"],
@@ -137,10 +143,16 @@ class ExperimentService:
                 best_diff = diff
                 eer_estimate = round((th_fpr + th_fnr) / 2.0, 3)
 
+        dataset_summary = (
+            f"Dos grabaciones fuente ({human_source_description}; {synthetic_source_description}), "
+            "cada una transformada en cuatro condiciones. Las ocho variantes no son ocho hablantes independientes."
+        )
         notes = (
-            "Demostración experimental de robustez acústica bajo transformaciones controladas con FFmpeg. "
-            "Se observa degradación en la separabilidad de clases en condiciones de filtro telefónico "
-            "y compresión MP3 a bajo bitrate, lo que valida académicamente la necesidad de defensas multicapa."
+            "Los valores mostrados son las salidas medidas en esta ejecución; no se presupone que el filtro o la compresión "
+            "empeoren el detector. El experimento usa una sola grabación fuente por clase, y la procedencia humana de C "
+            "es una declaración del operador. Las variantes derivadas no son observaciones independientes; estas métricas "
+            "son exploratorias y no estiman rendimiento general ni validan AASIST upstream. Compare las condiciones y "
+            "conserve los WAV fuente consentidos solo durante el tiempo necesario."
         )
 
         matrix = ConfusionMatrixData(
@@ -164,7 +176,9 @@ class ExperimentService:
 
         res = ExperimentResult(
             experiment_id=exp_id,
-            title="Benchmark de Robustez Acústica AASIST ante Perturbaciones",
+            title="Benchmark exploratorio del detector acústico VoiceShield",
+            detector_engine=detector_engine,
+            dataset_summary=dataset_summary,
             confusion_matrix=matrix,
             metrics=metrics,
             eer_curve_points=eer_curve_points,
@@ -180,7 +194,7 @@ class ExperimentService:
                 INSERT INTO experiment_records (id, title, dataset_summary, confusion_matrix_json, metrics_json, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                exp_id, res.title, f"{total} muestras en 4 condiciones",
+                exp_id, res.title, res.dataset_summary,
                 json.dumps(matrix.model_dump()), json.dumps(metrics.model_dump()), res.timestamp
             ))
             conn.commit()

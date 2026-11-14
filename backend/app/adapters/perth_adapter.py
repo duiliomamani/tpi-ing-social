@@ -7,10 +7,10 @@ from app.adapters.base import BaseWatermarkAdapter
 
 class PerThWatermarkAdapter(BaseWatermarkAdapter):
     """
-    Adaptador de Marca de Agua PerTh (Perceptual Threshold - Resemble AI PerthNet).
-    - Incrustación latente psicoacústica 100% inaudible (CERO pitidos, CERO ruidos de portadora).
-    - Verificación rigurosa de procedencia sintética para auditoría forense.
-    - Soporte dual: Red neuronal PerthNet implícita como motor principal y correlación spread-spectrum de respaldo.
+    Adaptador experimental de marcas de procedencia.
+    Usa PerthNet cuando está instalado; en caso contrario incrusta y consulta
+    una firma spread-spectrum propia del laboratorio. Ninguna ruta autentica al
+    hablante ni demuestra intención.
     """
     
     CHIP_KEY = "VOICESHIELD_PERTH_MASK_2026_RESEARCH_KEY"
@@ -32,8 +32,8 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
 
     def is_available(self) -> Tuple[bool, str]:
         if self.perth_net is not None:
-            return True, "Detector y Embebedor PerTh Neuronal (PerthNet step 250k) activo y sin artefactos audibles"
-        return True, "Embebedor PerTh v1.4 activo (Spread Spectrum de respaldo)"
+            return True, "PerthNet disponible para marcar y consultar procedencia; los resultados no autentican hablante o intención"
+        return True, "Firma spread-spectrum experimental de VoiceShield activa; no es PerthNet"
 
     def embed_watermark(
         self,
@@ -41,9 +41,9 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
         output_audio_path: str,
         payload: str = "VOICESHIELD_SYNTHETIC_AUDIO_AUTHORIZED"
     ) -> bool:
-        """
-        Embebe la marca de agua de procedencia de forma imperceptible.
-        Prioriza PerthNet neuronal implícito para garantizar total transparencia acústica (cero pitidos).
+        """Aplica PerthNet disponible o agrega la firma experimental local de VoiceShield.
+
+        El laboratorio no certifica la perceptibilidad de la marca.
         """
         try:
             data, sr = sf.read(input_audio_path, dtype='float32')
@@ -62,7 +62,7 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
                 repeats = int(np.ceil(n_samples / carrier_len))
                 full_carrier = np.tile(self.carrier_code, repeats)[:n_samples]
 
-                # Factor adaptativo muy bajo para evitar cualquier pitido audible
+                # Factor adaptativo bajo; la audibilidad no se certifica de forma objetiva.
                 mean_rms = np.sqrt(np.mean(audio_mono**2)) if len(audio_mono) > 0 else 0.05
                 alpha = min(0.003, mean_rms * 0.02)
                 watermarked = audio_mono + (alpha * full_carrier)
@@ -86,7 +86,7 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
 
     def detect_watermark(self, audio_path: str) -> Dict[str, Any]:
         """
-        Detecta la presencia de marcas PerTh utilizando PerthNet y correlación cruzada.
+        Consulta la marca con PerthNet, si está disponible, y la firma experimental local.
         """
         try:
             data, sr = sf.read(audio_path, dtype='float32')
@@ -95,7 +95,9 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
 
             if len(data) < 1600:
                 return {
-                    "method_name": "PerTh (Perceptual Threshold)",
+                    "method_name": (
+                        "PerthNet (PerTh)" if self.perth_net is not None else "Firma spread-spectrum experimental VoiceShield"
+                    ),
                     "status": "indeterminado",
                     "detected": None,
                     "correlation_score": 0.0,
@@ -129,40 +131,44 @@ class PerThWatermarkAdapter(BaseWatermarkAdapter):
                         detected = True
                         score = max(score, min(1.0, spread_score / 20.0))
 
+            method_name = (
+                "PerthNet (PerTh) con comprobación de firma VoiceShield"
+                if self.perth_net is not None
+                else "Firma spread-spectrum experimental VoiceShield"
+            )
+
             if detected:
                 status = "detectado"
-                payload = "VOICESHIELD_SYNTHETIC_AUDIO_PERTH"
                 interpretation = (
-                    f"Marca de agua PerTh DETECTADA (Confianza: {score:.2f} >= 0.50). "
-                    "Se detectó una marca de agua PerTh compatible con la firma sintética configurada por el laboratorio."
+                    f"Se detectó una firma compatible con el método consultado (score: {score:.2f}). "
+                    "Esto no identifica quién habla ni determina si el contenido es legítimo."
                 )
             else:
                 status = "no_detectado"
-                payload = None
                 interpretation = (
-                    f"No se detectó firma PerTh (Confianza: {score:.2f} < 0.50). "
-                    "El archivo carece de marcas de procedencia digital verificables."
+                    f"No se detectó la firma consultada (score: {score:.2f}). "
+                    "La ausencia de esta firma no prueba que el audio sea humano ni que no haya sido editado."
                 )
 
             note = (
-                "IMPORTANTE: La presencia de marca de agua confirma la procedencia sintética. "
-                "Sin embargo, su ausencia NO garantiza que el audio sea biológico, ya que un atacante "
-                "puede emplear herramientas de clonación sin marcas o aplicar filtros para erosionarla."
+                "La firma puede ser eliminada, degradada, copiada o detectada incorrectamente. "
+                "Su presencia solo es compatible con la marca configurada y no prueba síntesis, identidad o fraude. "
+                "Su ausencia tampoco demuestra origen humano."
             )
 
             return {
-                "method_name": "PerTh (Perceptual Threshold)",
+                "method_name": method_name,
                 "status": status,
                 "detected": detected,
                 "correlation_score": round(score, 3),
-                "watermark_payload": payload,
+                "watermark_payload": None,
                 "interpretation": interpretation,
                 "note": note
             }
 
         except Exception as e:
             return {
-                "method_name": "PerTh (Perceptual Threshold)",
+                "method_name": "Detector de marca de procedencia experimental",
                 "status": "indeterminado",
                 "detected": None,
                 "correlation_score": 0.0,

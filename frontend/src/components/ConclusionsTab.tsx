@@ -14,12 +14,19 @@ import {
 } from "lucide-react";
 import { purgeLabData } from "@/lib/api";
 
-export const ConclusionsTab: React.FC = () => {
+interface ConclusionsTabProps {
+  onDataPurged: () => void;
+  localOperationBusy: boolean;
+}
+
+export const ConclusionsTab: React.FC<ConclusionsTabProps> = ({ onDataPurged, localOperationBusy }) => {
   const handlePurge = async () => {
-    if (confirm("¿Confirmar eliminación definitiva de todas las grabaciones y datos biométricos temporales?")) {
+    if (localOperationBusy) return;
+    if (confirm("¿Eliminar cargas, clones de esta sesión, derivados experimentales, grabaciones C/D registradas y metadatos locales?")) {
       try {
         const res = await purgeLabData();
-        alert(res.message);
+        onDataPurged();
+        alert([res.message, res.scope_note].filter(Boolean).join("\n\n"));
       } catch (err: any) {
         alert("Error al purgar datos: " + err.message);
       }
@@ -48,9 +55,9 @@ export const ConclusionsTab: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-white mb-1.5">1. La Acústica No es Suficiente</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Como demostró el laboratorio comparativo con FFmpeg, los filtros de telefonía (300Hz-3400Hz) y la
-            compresión con pérdida degradan severamente la precisión de los modelos acústicos (AASIST),
-            aumentando la tasa de falsos negativos.
+            El benchmark mide cómo responde el detector experimental de VoiceShield a las condiciones que ejecutaste.
+            Compará los valores observados: una sola muestra fuente por clase no alcanza para generalizar ni afirmar
+            una tasa de error de campo.
           </p>
         </div>
 
@@ -60,9 +67,8 @@ export const ConclusionsTab: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-white mb-1.5">2. El Factor Humano Prevalece</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            La muestra D recuerda que un ataque telefónico no requiere clonación por IA para ser peligroso.
-            La ingeniería social explota sesgos cognitivos (autoridad, urgencia, culpa) independientemente
-            de si la voz es humana o sintética.
+            El guion D permite estudiar pedidos sensibles con una voz humana si se aporta una grabación consentida.
+            Las mismas señales de manipulación pueden aparecer en una voz sintética; el timbre no define la intención.
           </p>
         </div>
 
@@ -72,9 +78,8 @@ export const ConclusionsTab: React.FC = () => {
           </div>
           <h3 className="text-sm font-bold text-white mb-1.5">3. Verificación Fuera de Banda</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            La <strong>Regla de Oro</strong> demostrada en VoiceShield Lab establece que ante cualquier solicitud
-            sensible, la única defensa infalible es cortar y validar por un canal alternativo e independiente
-            previamente homologado.
+            Ante una solicitud sensible, pausá la acción y verificá por un canal independiente conocido. Es un control
+            operativo recomendado; el laboratorio no demuestra que exista una defensa técnica infalible.
           </p>
         </div>
       </div>
@@ -149,17 +154,18 @@ export const ConclusionsTab: React.FC = () => {
             <span>Saneamiento Ético de Datos del Laboratorio</span>
           </h4>
           <p className="text-xs text-slate-300 mt-1 max-w-xl">
-            Al finalizar la demostración académica, puede purgar de forma irrecuperable todas las grabaciones
-            temporales y perfiles de voz de los participantes generados en el servidor local.
+            Elimina cargas, clones generados, variantes experimentales, grabaciones humanas C/D registradas y metadatos
+            locales. Conserva A/B sintéticas, pesos de modelos y JSON ya descargados; el borrado de archivos no es forense.
           </p>
         </div>
 
         <button
           onClick={handlePurge}
-          className="flex items-center space-x-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 transition shrink-0"
+          disabled={localOperationBusy}
+          className="flex items-center space-x-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 transition shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Trash2 className="h-4 w-4" />
-          <span>Purgar Datos Biométricos</span>
+          <span>Limpiar Datos de Sesión</span>
         </button>
       </div>
     </div>

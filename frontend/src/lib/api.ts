@@ -135,9 +135,10 @@ export async function analyzeAudioSample(sampleName: string): Promise<AudioAnaly
   return res.json();
 }
 
-export async function analyzeUploadedAudio(file: File): Promise<AudioAnalysisResponse> {
+export async function analyzeUploadedAudio(file: File, consentDeclared: boolean): Promise<AudioAnalysisResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("consent_declared", String(consentDeclared));
   const res = await fetch(`${API_BASE}/detection/analyze-file`, {
     method: "POST",
     body: formData

@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 import numpy as np
 import soundfile as sf
 import librosa
@@ -11,7 +11,8 @@ from app.adapters.base import BaseAudioDetectorAdapter
 from app.core.config import settings
 
 # ==========================================
-# PyTorch AASIST Architecture Representation
+# Experimental VoiceShield acoustic classifier prototype.
+# This implementation is not the upstream AASIST architecture or weights.
 # ==========================================
 class GraphAttentionLayer(nn.Module):
     def __init__(self, in_features: int, out_features: int, num_heads: int = 4):
@@ -29,11 +30,11 @@ class GraphAttentionLayer(nn.Module):
         h_prime = self.linear(h).view(b, n, self.num_heads, self.out_features)
         return torch.mean(h_prime, dim=2)
 
-class AASISTModel(nn.Module):
+class VoiceShieldAcousticModel(nn.Module):
     """
-    AASIST: Audio Anti-Spoofing using Integrated Spectro-Temporal Graph Attention.
-    Inputs: Raw waveform tensor [Batch, 1, Samples] at 16kHz
-    Outputs: [Batch, 2] logits (0: Bonafide/Human, 1: Spoof/Synthetic)
+    Lightweight local prototype used for exploratory audio classification.
+    A checkpoint at ACOUSTIC_CHECKPOINT_PATH must match this prototype's architecture;
+    its scores are not interchangeable with scores from upstream AASIST.
     """
     def __init__(self):
         super().__init__()
@@ -71,22 +72,22 @@ class AASISTModel(nn.Module):
         return logits
 
 # ==========================================
-# AASIST Adapter with Spectral Fallback
+# VoiceShield acoustic adapter with a spectral baseline.
 # ==========================================
-class AASISTAdapter(BaseAudioDetectorAdapter):
+class VoiceShieldAcousticAdapter(BaseAudioDetectorAdapter):
     def __init__(self):
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-        self.weights_path = settings.AASIST_WEIGHTS_PATH
-        self.model: Optional[AASISTModel] = None
+        self.weights_path = settings.ACOUSTIC_CHECKPOINT_PATH
+        self.model: Optional[VoiceShieldAcousticModel] = None
         self.has_weights = False
         self._init_model()
 
     def _init_model(self):
         try:
-            self.model = AASISTModel().to(self.device)
+            self.model = VoiceShieldAcousticModel().to(self.device)
             if self.weights_path.exists():
                 state_dict = torch.load(str(self.weights_path), map_location=self.device)
-                self.model.load_state_dict(state_dict, strict=False)
+                self.model.load_state_dict(state_dict, strict=True)
                 self.model.eval()
                 self.has_weights = True
             else:
@@ -98,16 +99,18 @@ class AASISTAdapter(BaseAudioDetectorAdapter):
 
     def is_available(self) -> Tuple[bool, str]:
         if self.has_weights:
-            return True, f"AASIST Checkpoint cargado en {self.device} ({self.weights_path.name})"
-        return True, "AASIST inicializado en modo espectral forense (pesos preentrenados opcionales no encontrados)"
+            return True, f"Clasificador experimental VoiceShield inicializado en {self.device} con checkpoint local compatible"
+        return True, "Baseline espectro-acústico experimental activo; no se cargó un checkpoint AASIST preentrenado"
 
     def _compute_spectral_spoof_score(self, y: np.ndarray, sr: int) -> float:
         """
         Calcula un score técnico crudo basado en anomalías acústicas típicas
         de vocoders y modelos TTS neurales:
-        - Rigidez prosódica (baja dispersión de pitch)
-        - Entropía y contraste espectral anormal
-        - Centroide y balance de formantes vocales
+        - Dispersión de pitch
+        - Centroide y planitud espectral
+
+        Es una heurística exploratoria, no un clasificador validado ni una
+        estimación probabilística de origen.
         """
         if len(y) < sr * 0.5:
             return 0.0
@@ -124,8 +127,7 @@ class AASISTAdapter(BaseAudioDetectorAdapter):
         flatness = float(np.mean(librosa.feature.spectral_flatness(y=y)[0]))
 
         score = 0.0
-        # Evaluación prosódica: la voz humana natural presenta una dispersión de pitch > 180Hz
-        # mientras que los sintetizadores vocales suelen mostrar menor variabilidad prosódica (< 130Hz)
+        # Reglas heurísticas de laboratorio; no equivalen a un modelo validado.
         if pitch_std < 135.0:
             score += 1.8
         elif pitch_std > 220.0:
@@ -158,8 +160,7 @@ class AASISTAdapter(BaseAudioDetectorAdapter):
         engine_used: str = ""
 
         if self.has_weights and self.model is not None:
-            # Inferencia con red neuronal AASIST
-            engine_used = "AASIST Deep Neural Network (PyTorch Graph Attention)"
+            engine_used = "VoiceShield experimental neural prototype (local checkpoint)"
             # Segmentar a 64600 muestras (unos 4 segundos) o rellenar
             target_len = 64600
             if len(y) < target_len:
@@ -173,27 +174,26 @@ class AASISTAdapter(BaseAudioDetectorAdapter):
                 # Logit 0: Bonafide, Logit 1: Spoof
                 raw_score = float((logits[0, 1] - logits[0, 0]).cpu().item())
         else:
-            # Inferencia con analizador espectro-temporal forense
-            engine_used = "AASIST Spectral-Acoustic Analyzer (Forensic Baseline)"
+            engine_used = "VoiceShield experimental spectral-acoustic baseline"
             raw_score = self._compute_spectral_spoof_score(y, sr)
 
         inference_time_ms = round((time.time() - start_time) * 1000, 2)
         threshold = 0.0
 
-        # Veredicto técnico estricto (NO interpretado como probabilidad calibrada)
+        # Etiqueta heurística/técnica; no representa una identidad ni un hecho concluyente.
         if raw_score > 0.7:
-            verdict = "Evidencia de síntesis"
+            verdict = "Indicadores compatibles con síntesis"
             interpretation = (
-                f"El puntaje técnico bruto (+{raw_score:.3f}) supera el umbral de decisión ({threshold}). "
-                "Se observan anomalías acústicas consistentes con procesos de síntesis neuronal, tales como rigidez prosódica, "
-                "pérdida de continuidad en armónicos altos o atenuación característica de vocoders."
+                f"El score exploratorio (+{raw_score:.3f}) supera la zona de corte de ±0.7. "
+                "El baseline observa rasgos acústicos que asocia con síntesis; esta señal requiere revisión "
+                "y no confirma por sí sola el origen del audio ni la intención de la llamada."
             )
         elif raw_score < -0.7:
-            verdict = "Evidencia compatible con voz humana"
+            verdict = "Indicadores compatibles con voz humana"
             interpretation = (
-                f"El puntaje técnico bruto ({raw_score:.3f}) se sitúa por debajo del umbral de corte ({threshold}). "
-                "Las firmas espectro-temporales son compatibles con grabaciones de voz biológica natural, con dispersión "
-                "armónica y modulación de pitch orgánica."
+                f"El score exploratorio ({raw_score:.3f}) queda por debajo de la zona de corte de ±0.7. "
+                "Los rasgos observados son compatibles con voz humana, pero el resultado no autentica al hablante "
+                "ni descarta síntesis o manipulación."
             )
         else:
             verdict = "Resultado indeterminado"
@@ -204,21 +204,27 @@ class AASISTAdapter(BaseAudioDetectorAdapter):
             )
 
         limitations = [
-            "Puntaje técnico no calibrado: no representa una probabilidad porcentual de fraude.",
+            "Score exploratorio no calibrado: no representa una probabilidad de síntesis, fraude o identidad.",
+            "Sin checkpoint, se usa una heurística espectro-acústica del laboratorio; no es AASIST preentrenado.",
+            "El clasificador neuronal opcional usa la arquitectura experimental de VoiceShield, no la implementación upstream de AASIST.",
             "Sensible a códecs de telefonía (G.711 / AMR) y compresión MP3 con bitrate bajo.",
             "Grabaciones con alto ruido de fondo o reverberación pueden desplazar los scores hacia la zona indeterminada.",
-            "La detección acústica debe combinarse siempre con análisis de procedencia e ingeniería social."
+            "La síntesis o la marca de agua no determinan si el contenido es malicioso; analice el mensaje y la identidad por separado."
         ]
 
         return {
-            "model_name": "AASIST (Audio Anti-Spoofing Integrated Spectro-Temporal)",
-            "model_version": "v2.1" if self.has_weights else "v2.1-SpectralForensics",
+            "model_name": "VoiceShield Acoustic Prototype",
+            "model_version": "experimental-checkpoint" if self.has_weights else "spectral-baseline-v1",
+            "engine_used": engine_used,
             "raw_score": round(raw_score, 4),
             "is_calibrated": False,
             "decision_threshold": threshold,
             "verdict": verdict,
             "technical_interpretation": interpretation,
             "limitations": limitations,
-            "inference_time_ms": inference_time_ms,
-            "engine_used": engine_used
+            "inference_time_ms": inference_time_ms
         }
+
+
+# Compatibility alias for imports from the earlier prototype name.
+AASISTAdapter = VoiceShieldAcousticAdapter

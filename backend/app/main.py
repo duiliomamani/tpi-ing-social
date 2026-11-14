@@ -14,11 +14,12 @@ from app.api.routers import (
     risk_assessment,
     experiments
 )
+from app.services.scenario_service import scenario_service
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="VoiceShield Lab — Plataforma académica de clonación autorizada, análisis acústico y evaluación de riesgo"
+    description="VoiceShield Lab — PoC académica de generación de voz con autorización declarada, análisis acústico experimental y evaluación defensiva de riesgo"
 )
 
 # Configuración de CORS para el Frontend Next.js
@@ -79,25 +80,62 @@ def serve_audio_file(filename: str):
 @app.post("/api/admin/clear-lab-data")
 def purge_lab_audio_data():
     """
-    Requisito Académico y Ético:
-    Permitir eliminar las grabaciones y referencias de voz generadas al finalizar el laboratorio
-    para proteger la privacidad de los participantes.
+    Remove temporary uploads, generated clones, experiment derivatives, local
+    analysis metadata, and operator-supplied human scenario recordings.
     """
     ensure_data_directories()
-    clear_all_audio_data()
-    # Limpiar archivos subidos en data/uploads (preservando las muestras de escenario)
-    cleaned_count = 0
-    for item in settings.UPLOADS_DIR.glob("*.*"):
+    deleted_records = clear_all_audio_data()
+    deleted_files = 0
+    failures = []
+
+    def delete_files_under(directory: Path) -> None:
+        nonlocal deleted_files
+        for item in sorted(directory.rglob("*"), reverse=True):
+            if item.is_file() and item.name != ".gitkeep":
+                try:
+                    item.unlink()
+                    deleted_files += 1
+                except OSError as exc:
+                    failures.append(f"{item.name}: {exc}")
+            elif item.is_dir():
+                try:
+                    item.rmdir()
+                except OSError:
+                    pass
+
+    delete_files_under(settings.UPLOADS_DIR)
+    delete_files_under(settings.EXPERIMENTS_DIR)
+
+    for generated_audio in settings.AUDIO_SAMPLES_DIR.glob("synth_*.wav"):
         try:
-            item.unlink()
-            cleaned_count += 1
-        except Exception:
-            pass
+            generated_audio.unlink()
+            deleted_files += 1
+        except OSError as exc:
+            failures.append(f"{generated_audio.name}: {exc}")
+
+    try:
+        deleted_files += scenario_service.purge_operator_recorded_scenarios()
+    except OSError as exc:
+        failures.append(f"manifiesto de procedencia: {exc}")
+
+    status_value = "partial" if failures else "success"
+    message = (
+        f"Limpieza local completada: {deleted_files} archivos y "
+        f"{sum(deleted_records.values())} registros de la base local eliminados."
+    )
+    if failures:
+        message += f" No se pudieron eliminar {len(failures)} elementos."
 
     return {
-        "status": "success",
-        "message": f"Saneamiento completado. Se eliminaron los metadatos y {cleaned_count} grabaciones temporales de voz.",
-        "academic_note": "Ningún dato biométrico residual ha sido retenido."
+        "status": status_value,
+        "message": message,
+        "deleted_files": deleted_files,
+        "deleted_database_records": deleted_records,
+        "failures": failures,
+        "scope_note": (
+            "Se conservan las muestras sintéticas A/B del catálogo. Esta limpieza de archivos no garantiza "
+            "borrado forense en el almacenamiento y no elimina informes JSON ya descargados por el navegador."
+        )
     }
 
 @app.get("/")

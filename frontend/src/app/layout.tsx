@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "VoiceShield Lab — Voice Cloning & Audio Analysis",
-  description: "Laboratorio académico de clonación de voz autorizada, análisis acústico y evaluación de riesgo en comunicaciones.",
+  description: "PoC académica de generación de voz con autorización declarada, análisis acústico experimental y evaluación defensiva de riesgo.",
 };
 
 export default function RootLayout({

@@ -45,7 +45,7 @@ const WORKFLOW_STEPS = [
   {
     number: "02",
     title: "Analizar la señal",
-    description: "Ejecutá AASIST y PerTh sobre el mismo audio para revisar evidencia de síntesis y procedencia.",
+    description: "Ejecutá el baseline acústico y la marca de procedencia sobre el mismo audio; revisá qué motor respondió.",
     destination: "detection",
     action: "Abrir análisis",
     icon: AudioWaveform,
@@ -74,13 +74,14 @@ const WORKFLOW_STEPS = [
 const MODEL_CARDS = [
   { key: "f5_tts", group: "Síntesis y clonación", name: "F5-TTS Español", fallback: "Requiere instalar el motor y descargar el checkpoint" },
   { key: "faster_whisper", group: "Transcripción local", name: "faster-whisper", fallback: "Transcripción local para referencias y audios" },
-  { key: "aasist_detector", group: "Detección acústica", name: "AASIST", fallback: "Clasificador acústico del laboratorio" },
-  { key: "perth_watermark", group: "Procedencia de audio", name: "PerTh", fallback: "Verificación local de marca perceptual" },
-  { key: "ollama_gemma3", group: "Análisis semántico", name: "Gemma 3 · Ollama", fallback: "Requiere iniciar Ollama con el modelo configurado" }
+  { key: "acoustic_detector", group: "Detección acústica", name: "Detector acústico VoiceShield", fallback: "Baseline experimental local" },
+  { key: "perth_watermark", group: "Procedencia de audio", name: "Marca de procedencia", fallback: "PerthNet o firma experimental local" },
+  { key: "ollama_gemma3", group: "Análisis semántico", name: "Gemma 3 · Ollama", fallback: "Si Ollama no está, se usa un analizador heurístico local" }
 ] as const;
 
 const STATUS_STYLE = {
   available: { dot: "bg-emerald-400", text: "Disponible", label: "text-emerald-300" },
+  fallback: { dot: "bg-amber-400", text: "Alternativa local", label: "text-amber-300" },
   unavailable: { dot: "bg-rose-400", text: "No disponible", label: "text-rose-300" },
   pending: { dot: "bg-slate-500", text: "Consultando", label: "text-slate-400" }
 };
@@ -122,8 +123,8 @@ const VOICE_INTENT_ROWS: VoiceIntentRow[] = [
       {
         intent: "Pedido sospechoso",
         title: "Engaño con IA",
-        description: "Una voz clonada suplanta a un directivo o familiar y presiona para aprobar una transferencia.",
-        evidence: "Escenarios A y B · catalogados como sintéticos y maliciosos.",
+        description: "Una voz sintética usa autoridad o urgencia para inducir una transferencia.",
+        evidence: "Escenarios A y B · guiones ficticios en Piper; no son clones de participantes.",
         scenarioCodes: ["scenario_a", "scenario_b"],
         needsSyntheticControl: false,
         tone: "rose",
@@ -132,15 +133,15 @@ const VOICE_INTENT_ROWS: VoiceIntentRow[] = [
   },
   {
     key: "human",
-    label: "Voz humana",
-    detail: "Persona real",
+    label: "Voz humana declarada",
+    detail: "Origen según manifiesto",
     icon: UserRound,
     cells: [
       {
         intent: "Llamada normal",
         title: "Comunicación legítima",
         description: "Una persona coordina una tarea cotidiana sin urgencia, pedido sensible ni evasión de controles.",
-        evidence: "Escenario C · catalogado como voz humana legítima.",
+        evidence: "Escenario C · requiere una grabación humana consentida aportada por el operador; el origen no se comprueba automáticamente.",
         scenarioCodes: ["scenario_c"],
         needsSyntheticControl: false,
         tone: "emerald",
@@ -149,7 +150,7 @@ const VOICE_INTENT_ROWS: VoiceIntentRow[] = [
         intent: "Pedido sospechoso",
         title: "Engaño sin IA",
         description: "Una persona se hace pasar por soporte y solicita un código OTP/MFA o una acción sensible.",
-        evidence: "Escenario D · catalogado como voz humana maliciosa.",
+        evidence: "Escenario D · requiere una grabación humana consentida; el guion define la intención, no el timbre de voz.",
         scenarioCodes: ["scenario_d"],
         needsSyntheticControl: false,
         tone: "amber",
@@ -207,10 +208,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       ? "Audio del escenario evaluado"
       : "Todavía no hay audio en esta sesión",
     sessionReport.acoustic_analysis
-      ? `${sessionReport.acoustic_analysis.acoustic_detection.verdict} · PerTh ${sessionReport.acoustic_analysis.watermark_detection.status}`
+      ? `${sessionReport.acoustic_analysis.acoustic_detection.engine_used} · marca ${sessionReport.acoustic_analysis.watermark_detection.status}`
       : sessionReport.risk_assessment
       ? "Señales acústicas incluidas en la evaluación multicapa"
-      : "Pendiente de ejecutar AASIST y PerTh",
+      : "Pendiente de ejecutar el detector y consultar la marca",
     sessionReport.risk_assessment
       ? `Nivel operativo: ${sessionReport.risk_assessment.result.operational_risk_level}`
       : "Pendiente de revisar intención e identidad",
@@ -239,7 +240,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             VoiceShield <span className="text-cyan-400">Lab</span>
           </h1>
           <p className="mt-2 text-lg font-medium text-slate-200">
-            Clonación autorizada de voz y análisis forense para una demo reproducible.
+            Generación consentida de voz y análisis acústico experimental para una demo reproducible.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-slate-400">
             Seguí el audio desde una referencia consentida hasta la evaluación de riesgo. Los resultados son evidencia para el análisis académico, no una certeza automática.
@@ -360,7 +361,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {MODEL_CARDS.map((model) => {
             const modelStatus = health?.models?.[model.key];
-            const availability = modelStatus ? (modelStatus.available ? "available" : "unavailable") : "pending";
+            const isHeuristicFallback = model.key === "ollama_gemma3" && modelStatus && !modelStatus.available;
+            const availability = !modelStatus
+              ? "pending"
+              : modelStatus.available
+              ? "available"
+              : isHeuristicFallback
+              ? "fallback"
+              : "unavailable";
             const style = STATUS_STYLE[availability];
 
             return (
@@ -374,7 +382,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </div>
                 <h3 className="text-sm font-bold text-white">{model.name}</h3>
                 <p className="mt-1 min-h-8 text-[11px] leading-snug text-slate-400">
-                  {modelStatus?.status_message || model.fallback}
+                  {isHeuristicFallback
+                    ? `${modelStatus?.status_message}. Se usará el motor heurístico local.`
+                    : modelStatus?.status_message || model.fallback}
                 </p>
                 {modelStatus?.device && <p className="mt-2 text-[10px] font-mono text-slate-500">{modelStatus.device}</p>}
               </article>
@@ -383,7 +393,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
         <p className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500">
           <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-500" />
-          La disponibilidad se consulta al backend. Si un componente figura como no disponible, la interfaz puede abrirse igual, pero esa etapa no podrá ejecutarse.
+          La disponibilidad se consulta al backend. Si Ollama no está disponible, el análisis semántico usa reglas locales y la evaluación muestra ese motor.
         </p>
       </section>
     </div>
@@ -506,8 +516,8 @@ function VoiceIntentMatrix({ onNavigate, onRunScenario, onCreateControl }: Voice
                               Ejecutar muestra {sample.code.slice(-1).toUpperCase()}
                             </button>
                           ) : (
-                            <span key={sample.code} className="rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-[10px] text-slate-400">
-                              Muestra {sample.code.slice(-1).toUpperCase()} no está en este equipo
+                            <span key={sample.code} title={sample.availability_note} className="rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-[10px] text-slate-400">
+                              Muestra {sample.code.slice(-1).toUpperCase()} no está preparada con procedencia
                             </span>
                           ))
                         )}

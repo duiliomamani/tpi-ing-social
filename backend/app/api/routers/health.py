@@ -19,13 +19,13 @@ gemma_adapter = GemmaAdapter()
 def get_system_health():
     gemma = gemma_adapter
     whisper = transcription_service.adapter
-    aasist = audio_detection_service.aasist_adapter
+    acoustic_detector = audio_detection_service.acoustic_adapter
     perth = watermark_detection_service.adapter
     f5_tts = voice_generation_service.tts_adapter
 
     g_ok, g_msg = gemma.is_available()
     w_ok, w_msg = whisper.is_available()
-    a_ok, a_msg = aasist.is_available()
+    a_ok, a_msg = acoustic_detector.is_available()
     p_ok, p_msg = perth.is_available()
     f_ok, f_msg = f5_tts.is_available()
 
@@ -37,7 +37,7 @@ def get_system_health():
 
     models = {
         "ollama_gemma3": ModelStatus(
-            name="Gemma 3 4B (Ollama)",
+            name=f"Gemma / Ollama ({settings.OLLAMA_MODEL})",
             available=g_ok,
             status_message=g_msg,
             device="Local Host (11434)"
@@ -48,14 +48,14 @@ def get_system_health():
             status_message=w_msg,
             device="CPU (int8)"
         ),
-        "aasist_detector": ModelStatus(
-            name="AASIST Deepfake Classifier",
+        "acoustic_detector": ModelStatus(
+            name="VoiceShield Acoustic Prototype",
             available=a_ok,
             status_message=a_msg,
-            device=str(aasist.device)
+            device=str(acoustic_detector.device)
         ),
         "perth_watermark": ModelStatus(
-            name="PerTh Watermark Engine",
+            name="Marca de procedencia",
             available=p_ok,
             status_message=p_msg,
             device="CPU"

@@ -24,9 +24,12 @@ class VoiceGenerationRequest(BaseModel):
         description="ID del audio de referencia cargado",
     )
     reference_transcript: str = Field(..., min_length=1, max_length=2000, description="Transcripción literal del audio de referencia")
-    consent_granted: bool = Field(..., description="Consentimiento expreso e informado del titular de la voz")
+    consent_granted: bool = Field(
+        ...,
+        description="Declaración booleana del operador sobre autorización; no se verifica legal ni biométricamente",
+    )
     speaker_alias: str = Field("Participante Autorizado", description="Alias de la persona titular")
-    apply_perth_watermark: bool = Field(True, description="Embeber marca de agua perceptual PerTh")
+    apply_perth_watermark: bool = Field(True, description="Intentar embeber una marca de procedencia disponible en el entorno")
     cfg_strength: float = Field(2.0, ge=0.0, le=5.0, description="Guía de generación de F5-TTS")
     nfe_step: int = Field(16, ge=16, le=64, description="Pasos de inferencia de F5-TTS; 16 recomendado para demo local")
     speed: float = Field(1.0, ge=0.75, le=1.25, description="Velocidad de reproducción de F5-TTS")
@@ -45,7 +48,10 @@ class VoiceReferenceTranscriptionRequest(BaseModel):
         pattern=r"^ref_[0-9a-f]{10}$",
         description="ID del audio de referencia cargado",
     )
-    consent_granted: bool = Field(..., description="Consentimiento para procesar la muestra de voz")
+    consent_granted: bool = Field(
+        ...,
+        description="Declaración del operador sobre autorización para procesar la muestra; no se verifica externamente",
+    )
     clip_start_seconds: Optional[float] = Field(None, ge=0, description="Inicio del recorte manual en segundos")
     clip_end_seconds: Optional[float] = Field(None, gt=0, description="Fin del recorte manual en segundos")
 
@@ -104,9 +110,11 @@ class LabAudioSample(BaseModel):
     audio_file: str
     audio_url: str
     audio_available: bool = True
+    availability_note: str = ""
     duration_seconds: float
     ground_truth_voice: Literal["synthetic", "human"]
     ground_truth_intent: Literal["malicious", "legitimate"]
+    ground_truth_basis: str
     transcript: str
     pedagogical_objective: str
     default_verification_state: bool = False
@@ -123,19 +131,28 @@ class AudioVisualizationData(BaseModel):
     channels: int
     spectrogram_summary: Dict[str, Any]
 
-class AASISTDetectionResult(BaseModel):
+class AcousticDetectionResult(BaseModel):
     model_name: str
     model_version: str
+    engine_used: str = "Motor acústico no informado"
     raw_score: float = Field(..., description="Puntaje técnico logit/score sin calibrar (NO probabilidad porcentual)")
     is_calibrated: bool = False
-    verdict: Literal["Evidencia de síntesis", "Evidencia compatible con voz humana", "Resultado indeterminado"]
+    verdict: Literal[
+        "Indicadores compatibles con síntesis",
+        "Indicadores compatibles con voz humana",
+        "Resultado indeterminado",
+    ]
     decision_threshold: float
     technical_interpretation: str
     limitations: List[str]
     inference_time_ms: float
 
+
+# Backward-compatible schema name; new code should use AcousticDetectionResult.
+AASISTDetectionResult = AcousticDetectionResult
+
 class WatermarkDetectionResult(BaseModel):
-    method_name: str = "PerTh (Perceptual Threshold)"
+    method_name: str = "Detector de marca de procedencia experimental"
     status: Literal["detectado", "no_detectado", "indeterminado"]
     detected: Optional[bool]
     correlation_score: float
@@ -146,7 +163,7 @@ class WatermarkDetectionResult(BaseModel):
 class AudioAnalysisResponse(BaseModel):
     audio_id: str
     filename: str
-    acoustic_detection: AASISTDetectionResult
+    acoustic_detection: AcousticDetectionResult
     watermark_detection: WatermarkDetectionResult
     visualization: AudioVisualizationData
     overall_acoustic_summary: str
@@ -166,7 +183,10 @@ class SocialEngineeringAnalysisResponse(BaseModel):
     transcription_engine: str
     factors: List[SocialEngineeringFactor]
     total_detected_factors: int
-    semantic_risk_score: float = Field(..., ge=0.0, le=100.0, description="Puntuación de riesgo semántico (0-100)")
+    semantic_risk_score: float = Field(
+        ..., ge=0.0, le=100.0,
+        description="Indicador heurístico/modelado de 0 a 100; no es una probabilidad calibrada"
+    )
     semantic_risk_level: Literal["Bajo", "Medio", "Alto", "Crítico"]
     analyzer_engine: str
     untrusted_data_defense_applied: bool = True
@@ -213,6 +233,8 @@ class ExperimentMetrics(BaseModel):
 class ExperimentResult(BaseModel):
     experiment_id: str
     title: str
+    detector_engine: str
+    dataset_summary: str
     confusion_matrix: ConfusionMatrixData
     metrics: ExperimentMetrics
     eer_curve_points: List[Dict[str, float]]

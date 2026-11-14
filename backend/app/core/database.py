@@ -137,10 +137,13 @@ def list_audio_records(limit: int = 50) -> List[Dict[str, Any]]:
     return [dict(r) for r in rows]
 
 def clear_all_audio_data():
-    """Academic requirement: Permitir eliminar las grabaciones y referencias de voz al finalizar el laboratorio."""
+    """Remove session audio, analysis, and experiment metadata from the local database."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM analysis_records")
-    cursor.execute("DELETE FROM audio_records")
+    deleted = {}
+    for table in ("analysis_records", "audio_records", "experiment_records"):
+        cursor.execute(f"DELETE FROM {table}")
+        deleted[table] = cursor.rowcount
     conn.commit()
     conn.close()
+    return deleted

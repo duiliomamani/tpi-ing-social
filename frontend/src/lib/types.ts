@@ -76,20 +76,23 @@ export interface LabAudioSample {
   audio_file: string;
   audio_url: string;
   audio_available: boolean;
+  availability_note: string;
   duration_seconds: number;
   ground_truth_voice: "synthetic" | "human";
   ground_truth_intent: "malicious" | "legitimate";
+  ground_truth_basis: string;
   transcript: string;
   pedagogical_objective: string;
   default_verification_state: boolean;
 }
 
-export interface AASISTDetectionResult {
+export interface AcousticDetectionResult {
   model_name: string;
   model_version: string;
+  engine_used: string;
   raw_score: number;
   is_calibrated: boolean;
-  verdict: "Evidencia de síntesis" | "Evidencia compatible con voz humana" | "Resultado indeterminado";
+  verdict: "Indicadores compatibles con síntesis" | "Indicadores compatibles con voz humana" | "Resultado indeterminado";
   decision_threshold: number;
   technical_interpretation: string;
   limitations: string[];
@@ -123,7 +126,7 @@ export interface AudioVisualizationData {
 export interface AudioAnalysisResponse {
   audio_id: string;
   filename: string;
-  acoustic_detection: AASISTDetectionResult;
+  acoustic_detection: AcousticDetectionResult;
   watermark_detection: WatermarkDetectionResult;
   visualization: AudioVisualizationData;
   overall_acoustic_summary: string;
@@ -194,6 +197,8 @@ export interface ExperimentMetrics {
 export interface ExperimentResult {
   experiment_id: string;
   title: string;
+  detector_engine: string;
+  dataset_summary: string;
   confusion_matrix: ConfusionMatrixData;
   metrics: ExperimentMetrics;
   eer_curve_points: Array<{
@@ -220,7 +225,7 @@ export interface DemoSessionReport {
     captured_at: string;
     audio_id: string;
     filename: string;
-    acoustic_detection: AASISTDetectionResult;
+    acoustic_detection: AcousticDetectionResult;
     watermark_detection: WatermarkDetectionResult;
     overall_acoustic_summary: string;
     visualization_summary: { sample_rate: number; duration: number; channels: number };

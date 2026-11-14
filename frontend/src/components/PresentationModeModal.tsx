@@ -24,9 +24,8 @@ const PRESENTATION_STEPS = [
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          Tradicionalmente, el vishing requería de actores humanos que fingían identidades con entonaciones ensayadas.
-          La democratización de los modelos neurales de texto a voz (TTS zero-shot) permite hoy clonar la voz de un directivo
-          o familiar a partir de breves segundos de audio público extraídos de redes sociales o conferencias.
+          El vishing puede usar una voz humana o una voz sintética. Los modelos de generación y clonación amplían las
+          opciones de suplantación, pero el timbre de voz por sí solo no permite decidir si un pedido es legítimo.
         </p>
         <p>
           <strong className="text-cyan-400">Objetivo del Proyecto:</strong> Diseñar y evaluar VoiceShield Lab como una
@@ -38,20 +37,20 @@ const PRESENTATION_STEPS = [
   {
     step: 2,
     tab: "generation",
-    title: "2. Generación Ética y Procedencia (F5-TTS & PerTh)",
+    title: "2. Generación ética y procedencia",
     tagline: "¿Cómo se produce un clon de voz y cómo se audita su origen?",
     demoAction: "Usá solo una referencia consentida. Revisá el recorte y su transcripción; para una exposición breve, prepará el audio antes de presentar.",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          En este módulo F5-TTS genera habla en español a partir del texto y condiciona la voz con una muestra
-          autorizada y su transcripción literal. Las mediciones de F0 sirven para comparar el resultado; no se fuerza
-          una frecuencia única ni se ecualizan formantes de forma global.
+          En este módulo F5-TTS genera habla en español a partir del texto y una referencia con autorización declarada
+          por el operador. Las mediciones de F0 sirven para comparar el resultado; no aseguran similitud de identidad
+          ni naturalidad, y no se fuerza una frecuencia única.
         </p>
         <div className="rounded-lg bg-black/40 border border-cyan-500/30 p-3 space-y-1 text-slate-300">
           <strong className="text-cyan-300 block">Qué mostrar:</strong>
           <div>1. <strong className="text-white">Consentimiento:</strong> la generación requiere confirmar autorización antes de sintetizar.</div>
-          <div>2. <strong className="text-white">Procedencia:</strong> revisá si el resultado informa la marca PerTh; su presencia no demuestra identidad.</div>
+          <div>2. <strong className="text-white">Procedencia:</strong> revisá qué marca consultó el sistema; su presencia no prueba identidad ni intención.</div>
         </div>
       </div>
     )
@@ -59,18 +58,18 @@ const PRESENTATION_STEPS = [
   {
     step: 3,
     tab: "detection",
-    title: "3. Detección Acústica Física (AASIST)",
+    title: "3. Detección acústica experimental",
     tagline: "Señales acústicas y procedencia, con sus limitaciones",
-    demoAction: "Analizá el mismo WAV generado o subido. Señalá el veredicto, el logit y el resultado PerTh; no los presentes como probabilidades de identidad.",
+    demoAction: "Analizá el mismo WAV generado o subido. Señalá el motor exacto, el score y la firma consultada; no los presentes como probabilidades de identidad.",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          AASIST devuelve evidencia acústica compatible con voz humana, síntesis o un resultado indeterminado. El
-          laboratorio muestra su puntaje técnico sin convertirlo en una probabilidad de que el hablante sea quien dice ser.
+          El prototipo acústico de VoiceShield devuelve una etiqueta exploratoria compatible con voz humana, síntesis
+          o un resultado indeterminado. No es el AASIST oficial y su score no está calibrado.
         </p>
         <p className="rounded bg-amber-500/10 border border-amber-500/30 p-2 text-amber-200">
-          <strong>Lectura correcta:</strong> PerTh informa una marca de procedencia; que no aparezca no prueba que el audio sea humano.
-          AASIST tampoco verifica la identidad de la persona.
+          <strong>Lectura correcta:</strong> PerthNet se usa si está instalado; en otro caso se consulta la firma experimental
+          de VoiceShield. La ausencia de marca no prueba origen humano, y el detector no verifica identidad.
         </p>
       </div>
     )
@@ -105,12 +104,12 @@ const PRESENTATION_STEPS = [
     tab: "dashboard",
     title: "5. Matriz de Confianza y la Regla de Oro",
     tagline: "Evaluación conjunta de audio, contenido e identidad",
-    demoAction: "Usá el escenario D para mostrar que una voz humana también puede pedir un OTP. Probá la evaluación con identidad sin verificar y luego con verificación independiente.",
+    demoAction: "Si hay una grabación D consentida, mostrá que un guion humano puede pedir un OTP. Marcá verificación independiente solo si realmente se hizo fuera del laboratorio.",
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          La muestra D representa una voz humana que solicita un OTP. Aunque el audio resulte compatible con voz humana,
-          esa señal no convierte el pedido en legítimo.
+          El escenario D usa un guion de solicitud de OTP. Solo se etiqueta como voz humana si se aporta una grabación
+          consentida y se registra su procedencia; el laboratorio no valida automáticamente ese origen.
         </p>
         <p className="rounded-lg bg-rose-950/40 border border-rose-500/40 p-3 text-rose-200 font-semibold">
           <strong>PROTOCOLO DEFENSIVO:</strong> Una solicitud de transferencia, contraseña u OTP debe verificarse por un canal
@@ -128,8 +127,8 @@ const PRESENTATION_STEPS = [
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          El laboratorio ejecuta transformaciones FFmpeg sobre audios reales y sintéticos:
-          filtro pasa-banda telefónico (300Hz-3400Hz), compresión MP3 y ruido aditivo.
+          El laboratorio transforma una grabación C declarada humana y una A sintética Piper: filtro pasa-banda
+          telefónico (300–3400 Hz), compresión MP3 y ruido aditivo.
         </p>
         <p className="rounded bg-amber-500/10 border border-amber-500/30 p-2 text-amber-200">
           Compará las métricas que entregue esta ejecución. El benchmark usa pocas muestras y sirve como demostración técnica,
@@ -147,13 +146,12 @@ const PRESENTATION_STEPS = [
     content: (
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
         <p>
-          VoiceShield Lab demuestra que la tecnología de clonación de voz es accesible, pero la defensa
-          es factible mediante la combinación de análisis forense, análisis semántico con LLMs locales
-          y disciplina operativa fuera de banda.
+          VoiceShield Lab permite observar señales acústicas, marcas consultadas y contenido transcripto por separado.
+          Ninguna de estas señales autentica a quien llama; la verificación y el flujo formal siguen en manos de la organización.
         </p>
         <p>
-          Al concluir el ejercicio, el laboratorio permite purgar todos los datos biométricos y grabaciones temporales,
-          cumpliendo con los más altos estándares de privacidad y ética académica.
+          La limpieza elimina archivos de sesión, clones, derivados y grabaciones humanas C/D registradas, junto con
+          metadatos locales. Conserva A/B sintéticas y pesos; no elimina informes ya descargados ni garantiza borrado forense.
         </p>
       </div>
     )

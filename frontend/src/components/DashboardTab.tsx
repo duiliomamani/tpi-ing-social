@@ -19,12 +19,15 @@ import {
   Upload,
   UserRound
 } from "lucide-react";
-import { LabAudioSample, SystemHealthResponse } from "@/lib/types";
+import { DemoSessionReport, LabAudioSample, SystemHealthResponse } from "@/lib/types";
 import { fetchLabSamples } from "@/lib/api";
 
 interface DashboardTabProps {
   health: SystemHealthResponse | null;
   onNavigate: (tab: string) => void;
+  sessionReport: DemoSessionReport;
+  reportAvailable: boolean;
+  onExportReport: () => void;
   onRunScenario: (sample: LabAudioSample) => void;
   onCreateControl: () => void;
 }
@@ -178,7 +181,44 @@ const MATRIX_TONES = {
   },
 } as const;
 
-export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, onRunScenario, onCreateControl }) => {
+export const DashboardTab: React.FC<DashboardTabProps> = ({
+  health,
+  sessionReport,
+  reportAvailable,
+  onNavigate,
+  onExportReport,
+  onRunScenario,
+  onCreateControl
+}) => {
+  const stageComplete = [
+    Boolean(sessionReport.generated_voice || sessionReport.acoustic_analysis || sessionReport.risk_assessment),
+    Boolean(sessionReport.acoustic_analysis || sessionReport.risk_assessment),
+    Boolean(sessionReport.risk_assessment),
+    Boolean(sessionReport.experiment),
+  ];
+  const completedCount = stageComplete.filter(Boolean).length;
+  const nextStageIndex = stageComplete.findIndex((complete) => !complete);
+  const stageEvidence = [
+    sessionReport.generated_voice
+      ? `${sessionReport.generated_voice.result.creator_model} · ${sessionReport.generated_voice.result.duration_seconds}s`
+      : sessionReport.acoustic_analysis
+      ? sessionReport.acoustic_analysis.filename
+      : sessionReport.risk_assessment
+      ? "Audio del escenario evaluado"
+      : "Todavía no hay audio en esta sesión",
+    sessionReport.acoustic_analysis
+      ? `${sessionReport.acoustic_analysis.acoustic_detection.verdict} · PerTh ${sessionReport.acoustic_analysis.watermark_detection.status}`
+      : sessionReport.risk_assessment
+      ? "Señales acústicas incluidas en la evaluación multicapa"
+      : "Pendiente de ejecutar AASIST y PerTh",
+    sessionReport.risk_assessment
+      ? `Nivel operativo: ${sessionReport.risk_assessment.result.operational_risk_level}`
+      : "Pendiente de revisar intención e identidad",
+    sessionReport.experiment
+      ? `${sessionReport.experiment.result.metrics.total_samples} variantes comparadas`
+      : "Benchmark todavía no ejecutado",
+  ];
+
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyber-850 via-cyber-900 to-black p-6 shadow-2xl sm:p-8">
@@ -200,10 +240,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => onNavigate("generation")}
+              onClick={() => {
+                if (nextStageIndex < 0 && reportAvailable) onExportReport();
+                else onNavigate(WORKFLOW_STEPS[nextStageIndex < 0 ? 0 : nextStageIndex].destination);
+              }}
               className="flex items-center space-x-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-cyan-400"
             >
-              <span>Comenzar recorrido</span>
+              <span>{nextStageIndex < 0 ? "Descargar informe" : completedCount === 0 ? "Comenzar PoC" : "Continuar PoC"}</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
             <button
@@ -225,13 +268,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, 
       />
 
       <section className="space-y-4" aria-labelledby="workflow-heading">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Recorrido recomendado</p>
-          <h2 id="workflow-heading" className="mt-1 text-lg font-bold text-white">De la muestra a una decisión defensiva</h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-400">Avance de esta sesión</p>
+            <h2 id="workflow-heading" className="mt-1 text-lg font-bold text-white">Recorrido de la PoC</h2>
+            <p className="mt-1 text-xs text-slate-400">Cada etapa queda marcada al producir evidencia; podés repetirla o continuar con la siguiente.</p>
+          </div>
+          <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-300">
+            {completedCount} de {WORKFLOW_STEPS.length} etapas
+          </span>
+        </div>
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-slate-800"
+          role="progressbar"
+          aria-label="Avance del recorrido de la PoC"
+          aria-valuemin={0}
+          aria-valuemax={WORKFLOW_STEPS.length}
+          aria-valuenow={completedCount}
+        >
+          <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${(completedCount / WORKFLOW_STEPS.length) * 100}%` }} />
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {WORKFLOW_STEPS.map((step) => {
+          {WORKFLOW_STEPS.map((step, index) => {
             const Icon = step.icon;
+            const isComplete = stageComplete[index];
+            const isNext = nextStageIndex === index;
             const colorClasses = step.color === "amber"
               ? "border-amber-500/20 bg-amber-950/40 text-amber-300"
               : step.color === "emerald"
@@ -242,8 +303,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, 
               <button
                 key={step.number}
                 type="button"
-                onClick={() => onNavigate(step.destination)}
-                className="group cyber-panel flex h-full flex-col p-5 text-left transition hover:-translate-y-0.5 hover:border-cyan-500/40 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                onClick={() => isComplete && index === 3 && reportAvailable ? onExportReport() : onNavigate(step.destination)}
+                className={`group cyber-panel flex h-full flex-col p-5 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-cyan-400 ${isNext ? "border-cyan-500/40" : "hover:border-cyan-500/40"}`}
               >
                 <div className="flex w-full items-start justify-between">
                   <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${colorClasses}`}>
@@ -251,10 +312,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ health, onNavigate, 
                   </div>
                   <span className="font-mono text-xs text-slate-500">{step.number}</span>
                 </div>
-                <h3 className="mt-4 text-sm font-bold text-white">{step.title}</h3>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-white">{step.title}</h3>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${isComplete ? "bg-emerald-500/15 text-emerald-300" : isNext ? "bg-cyan-500/15 text-cyan-200" : "bg-slate-800 text-slate-400"}`}>
+                    {isComplete ? "Listo" : isNext ? "Siguiente" : "Pendiente"}
+                  </span>
+                </div>
                 <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">{step.description}</p>
-                <span className="mt-4 inline-flex items-center space-x-1.5 text-xs font-semibold text-cyan-300">
-                  <span>{step.action}</span>
+                <p className="mt-3 min-h-8 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">{stageEvidence[index]}</p>
+                <span className="mt-3 inline-flex items-center space-x-1.5 text-xs font-semibold text-cyan-300">
+                  <span>{isComplete && index === 3 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext ? "Continuar ahora" : step.action}</span>
                   <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </span>
               </button>

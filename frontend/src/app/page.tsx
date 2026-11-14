@@ -205,7 +205,10 @@ export default function Home() {
               <DashboardTab
                 key={`dashboard-${sessionVersion}`}
                 health={health}
+                sessionReport={sessionReport}
+                reportAvailable={reportAvailable}
                 onNavigate={navigateToTab}
+                onExportReport={exportSessionReport}
                 onRunScenario={launchScenarioEvaluation}
                 onCreateControl={createSyntheticControl}
               />

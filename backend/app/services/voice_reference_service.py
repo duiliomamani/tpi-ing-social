@@ -9,7 +9,7 @@ from app.services.transcription_service import transcription_service
 
 
 class VoiceReferenceService:
-    """Transcribe long local recordings and prepare a short F5-compatible excerpt."""
+    """Transcribe long local recordings and prepare a short Qwen3-TTS reference."""
 
     MIN_CLIP_SECONDS = 5.0
     MAX_CLIP_SECONDS = settings.MAX_VOICE_REFERENCE_DURATION_SECONDS

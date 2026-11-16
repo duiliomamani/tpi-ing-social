@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   ArrowRight,
@@ -13,6 +14,7 @@ import {
   Mic,
   Play,
   PhoneCall,
+  Presentation,
   Sparkles,
   ShieldCheck,
   TriangleAlert,
@@ -31,6 +33,7 @@ interface DashboardTabProps {
   onExportReport: () => void;
   onRunScenario: (sample: LabAudioSample) => void;
   onCreateControl: () => void;
+  onOpenPresentation?: () => void;
 }
 
 const WORKFLOW_STEPS = [
@@ -82,7 +85,6 @@ const WORKFLOW_STEPS = [
 ];
 
 const MODEL_CARDS = [
-  { key: "f5_tts", group: "Síntesis y clonación", name: "F5-TTS Español", fallback: "Requiere instalar el motor y descargar el checkpoint" },
   { key: "faster_whisper", group: "Transcripción local", name: "faster-whisper", fallback: "Transcripción local para referencias y audios" },
   { key: "acoustic_detector", group: "Detección acústica", name: "Detector acústico VoiceShield", fallback: "Baseline experimental local" },
   { key: "perth_watermark", group: "Procedencia de audio", name: "Marca de procedencia", fallback: "PerthNet o firma experimental local" },
@@ -200,7 +202,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onNavigate,
   onExportReport,
   onRunScenario,
-  onCreateControl
+  onCreateControl,
+  onOpenPresentation,
 }) => {
   const stageComplete = [
     Boolean(sessionReport.generated_voice || sessionReport.call_simulation || sessionReport.acoustic_analysis || sessionReport.risk_assessment),
@@ -282,6 +285,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <Layers className="h-3.5 w-3.5 text-cyan-300" />
               <span>Ruta rápida: elegir caso</span>
             </button>
+            {onOpenPresentation ? (
+              <button
+                type="button"
+                onClick={onOpenPresentation}
+                className="flex items-center space-x-2 rounded-lg border border-cyan-500/40 bg-cyan-950/30 px-4 py-2.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-900/50 hover:text-white"
+              >
+                <Presentation className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Modo Presentación</span>
+              </button>
+            ) : (
+              <Link
+                href="/presentacion"
+                className="flex items-center space-x-2 rounded-lg border border-cyan-500/40 bg-cyan-950/30 px-4 py-2.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-900/50 hover:text-white"
+              >
+                <Presentation className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Modo Presentación</span>
+              </Link>
+            )}
           </div>
         </div>
       </section>

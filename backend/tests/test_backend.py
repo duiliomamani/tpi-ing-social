@@ -4,8 +4,6 @@ import soundfile as sf
 
 from app.adapters.aasist_adapter import VoiceShieldAcousticAdapter
 from app.adapters.perth_adapter import PerThWatermarkAdapter
-from app.adapters.f5_tts_adapter import F5TTSAdapter
-from app.adapters.chatterbox_adapter import ChatterboxAdapter
 from app.adapters.gemma_adapter import GemmaAdapter
 from app.core.config import settings
 from app.core.database import init_db
@@ -169,7 +167,3 @@ def test_experiment_reports_small_derived_dataset(tmp_path):
     assert len(result.eer_curve_points) > 0
     assert result.detector_engine
     assert "no son ocho hablantes independientes" in result.dataset_summary
-
-
-def test_chatterbox_import_remains_f5_compatibility_alias():
-    assert ChatterboxAdapter is F5TTSAdapter

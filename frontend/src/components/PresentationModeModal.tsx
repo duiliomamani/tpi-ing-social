@@ -1,300 +1,455 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles
-} from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { X, ArrowLeft, ShieldAlert, PhoneCall, Mic, AudioWaveform } from "lucide-react";
 
 interface PresentationModeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJumpToTab: (tabId: string) => void;
+  onJumpToTab?: (tabId: string) => void;
 }
-
-const PRESENTATION_STEPS = [
-  {
-    step: 1,
-    tab: "dashboard",
-    title: "1. Introducción y Contexto de la Amenaza",
-    tagline: "El nuevo vector: Ingeniería Social amplificada por Modelos Generativos de Audio",
-    demoAction: "Mostrá los cuatro cuadrantes y ejecutá un caso con audio disponible. Si falta el audio pregrabado, cargá un equivalente desde el análisis acústico.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          El vishing puede usar una voz humana o una voz sintética. Los modelos de generación y clonación amplían las
-          opciones de suplantación, pero el timbre de voz por sí solo no permite decidir si un pedido es legítimo.
-        </p>
-        <p>
-          <strong className="text-cyan-400">Objetivo del Proyecto:</strong> Diseñar y evaluar VoiceShield Lab como una
-          plataforma local, ética y reproducible para estudiar la anatomía del ataque y probar defensas en profundidad.
-        </p>
-      </div>
-    )
-  },
-  {
-    step: 2,
-    tab: "generation",
-    title: "2. Generación ética y procedencia",
-    tagline: "¿Cómo se produce un clon de voz y cómo se audita su origen?",
-    demoAction: "Usá solo una referencia consentida. Revisá el recorte y su transcripción; para una exposición breve, prepará el audio antes de presentar.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          En este módulo F5-TTS genera habla en español a partir del texto y una referencia con autorización declarada
-          por el operador. Las mediciones de F0 sirven para comparar el resultado; no aseguran similitud de identidad
-          ni naturalidad, y no se fuerza una frecuencia única.
-        </p>
-        <div className="rounded-lg bg-black/40 border border-cyan-500/30 p-3 space-y-1 text-slate-300">
-          <strong className="text-cyan-300 block">Qué mostrar:</strong>
-          <div>1. <strong className="text-white">Consentimiento:</strong> la generación requiere confirmar autorización antes de sintetizar.</div>
-          <div>2. <strong className="text-white">Procedencia:</strong> revisá qué marca consultó el sistema; su presencia no prueba identidad ni intención.</div>
-        </div>
-      </div>
-    )
-  },
-  {
-    step: 3,
-    tab: "simulation",
-    title: "3. Simulación local de llamada",
-    tagline: "El participante escucha, responde y practica la verificación",
-    demoAction: "Iniciá la sala 3D con una referencia de voz autorizada. Respondé por texto o micrófono y cerrá con una acción defensiva.",
-    content: (
-      <div className="space-y-3 text-xs leading-relaxed text-slate-300">
-        <p>
-          Qwen3.5:2B genera los turnos del emisor ficticio y Qwen3-TTS convierte esos turnos en audio usando una muestra autorizada.
-          La respuesta del participante se transcribe localmente y el diálogo termina dentro del laboratorio, sin marcar teléfonos.
-        </p>
-        <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-emerald-200">
-          Practicá cortar la presión, no compartir códigos y verificar por un canal oficial. La evaluación final muestra señales del guion y la respuesta elegida.
-        </p>
-      </div>
-    )
-  },
-  {
-    step: 4,
-    tab: "detection",
-    title: "4. Detección acústica experimental",
-    tagline: "Señales acústicas y procedencia, con sus limitaciones",
-    demoAction: "Analizá el mismo WAV generado o subido. Señalá el motor exacto, el score y la firma consultada; no los presentes como probabilidades de identidad.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          El prototipo acústico de VoiceShield devuelve una etiqueta exploratoria compatible con voz humana, síntesis
-          o un resultado indeterminado. No es el AASIST oficial y su score no está calibrado.
-        </p>
-        <p className="rounded bg-amber-500/10 border border-amber-500/30 p-2 text-amber-200">
-          <strong>Lectura correcta:</strong> PerthNet se usa si está instalado; en otro caso se consulta la firma experimental
-          de VoiceShield. La ausencia de marca no prueba origen humano, y el detector no verifica identidad.
-        </p>
-      </div>
-    )
-  },
-  {
-    step: 5,
-    tab: "confidence",
-    title: "5. Revisar el contenido del mensaje",
-    tagline: "La transcripción aporta contexto; una persona debe revisar sus errores",
-    demoAction: "Revisá o corregí el texto transcripto antes de ejecutar la evaluación. Mostrá qué indicadores detectó el análisis semántico y con qué evidencia.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          La transcripción local se usa como entrada para buscar señales como urgencia, autoridad, secretismo, pedido de dinero
-          o solicitud de claves. El análisis puede equivocarse si la transcripción o el contexto son incompletos.
-        </p>
-        <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono text-cyan-300">
-          <div>• Autoridad declarada</div>
-          <div>• Urgencia artificial</div>
-          <div>• Presión emocional</div>
-          <div>• Petición de claves/OTP</div>
-          <div>• Solicitud de dinero</div>
-          <div>• Evasión de canales</div>
-          <div>• Amenazas de despido</div>
-          <div>• Identidad no verificada</div>
-        </div>
-      </div>
-    )
-  },
-  {
-    step: 6,
-    tab: "dashboard",
-    title: "6. Matriz de Confianza y la Regla de Oro",
-    tagline: "Evaluación conjunta de audio, contenido e identidad",
-    demoAction: "Si hay una grabación D consentida, mostrá que un guion humano puede pedir un OTP. Marcá verificación independiente solo si realmente se hizo fuera del laboratorio.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          El escenario D usa un guion de solicitud de OTP. Solo se etiqueta como voz humana si se aporta una grabación
-          consentida y se registra su procedencia; el laboratorio no valida automáticamente ese origen.
-        </p>
-        <p className="rounded-lg bg-rose-950/40 border border-rose-500/40 p-3 text-rose-200 font-semibold">
-          <strong>PROTOCOLO DEFENSIVO:</strong> Una solicitud de transferencia, contraseña u OTP debe verificarse por un canal
-          independiente. La clasificación automática orienta el análisis; no reemplaza esa verificación.
-        </p>
-      </div>
-    )
-  },
-  {
-    step: 7,
-    tab: "experiments",
-    title: "7. Robustez Acústica y Filtros Telefónicos",
-    tagline: "El impacto de la compresión y el ancho de banda telefónico (PSTN)",
-    demoAction: "Si el tiempo y el backend lo permiten, ejecutá el benchmark y comentá los valores observados. No anticipes resultados ni generalices desde pocas muestras.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          El laboratorio transforma una grabación C declarada humana y una A sintética Piper: filtro pasa-banda
-          telefónico (300–3400 Hz), compresión MP3 y ruido aditivo.
-        </p>
-        <p className="rounded bg-amber-500/10 border border-amber-500/30 p-2 text-amber-200">
-          Compará las métricas que entregue esta ejecución. El benchmark usa pocas muestras y sirve como demostración técnica,
-          no como estimación de rendimiento en producción.
-        </p>
-      </div>
-    )
-  },
-  {
-    step: 8,
-    tab: "conclusions",
-    title: "8. Conclusiones y Recomendaciones Defensivas",
-    tagline: "Protocolo operativo para organizaciones y saneamiento de datos",
-    demoAction: "Cerrá con el protocolo de respuesta, exportá el informe local y purgá los audios temporales cuando termine la exposición.",
-    content: (
-      <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          VoiceShield Lab permite observar señales acústicas, marcas consultadas y contenido transcripto por separado.
-          Ninguna de estas señales autentica a quien llama; la verificación y el flujo formal siguen en manos de la organización.
-        </p>
-        <p>
-          La limpieza elimina archivos de sesión, clones, derivados y grabaciones humanas C/D registradas, junto con
-          metadatos locales. Conserva A/B sintéticas y pesos; no elimina informes ya descargados ni garantiza borrado forense.
-        </p>
-      </div>
-    )
-  }
-];
 
 export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
   isOpen,
   onClose,
-  onJumpToTab
+  onJumpToTab,
 }) => {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key and prevent body scroll
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Ensure FontAwesome is available
+    const faId = "font-awesome-cdn";
+    if (!document.getElementById(faId)) {
+      const link = document.createElement("link");
+      link.id = faId;
+      link.rel = "stylesheet";
+      link.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css";
+      document.head.appendChild(link);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
+
+  // Intersection Observer inside the modal scroll container
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const observerOptions = {
+      root: container,
+      rootMargin: "0px",
+      threshold: 0.15,
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("active");
+        } else {
+          entry.target.classList.remove("active");
+        }
+      });
+    }, observerOptions);
+
+    const revealElements = container.querySelectorAll(".reveal");
+    revealElements.forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const currentStep = PRESENTATION_STEPS[currentStepIndex];
-
-  const handleNext = () => {
-    if (currentStepIndex < PRESENTATION_STEPS.length - 1) {
-      setCurrentStepIndex((index) => index + 1);
+  const handleNavigate = (tabId: string) => {
+    if (onJumpToTab) {
+      onJumpToTab(tabId);
     }
-  };
-
-  const handlePrev = () => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex((index) => index - 1);
-    }
-  };
-
-  const handleOpenModule = () => {
     onClose();
-    onJumpToTab(currentStep.tab);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="presentation-step-title" className="w-full max-w-2xl rounded-2xl border border-cyan-500/40 bg-cyber-900 p-6 shadow-[0_0_50px_rgba(0,240,255,0.2)] relative">
-        {/* Close Button */}
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Presentación interactiva VoiceShield Lab"
+      className="fixed inset-0 z-50 overflow-y-auto bg-[#020617] text-[#f8fafc] font-sans scroll-smooth selection:bg-cyan-500 selection:text-white"
+    >
+      {/* Dynamic Cyberpunk & Neon Styles */}
+      <style jsx global>{`
+        .modal-bg-grid {
+          background-size: 40px 40px;
+          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .modal-bg-glow {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 80vw;
+          height: 80vh;
+          background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(2, 6, 23, 0) 70%);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .text-neon-blue {
+          color: #38bdf8;
+          text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        .text-neon-green {
+          color: #34d399;
+          text-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+        }
+        .box-neon-blue {
+          box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .reveal {
+          opacity: 0;
+          transform: translateY(50px);
+          transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal.active {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+
+        .pres-section {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
+          position: relative;
+          z-index: 10;
+        }
+
+        .scroll-indicator-anim {
+          position: absolute;
+          bottom: 2rem;
+          left: 50%;
+          transform: translateX(-50%);
+          animation: bounceIndicator 2s infinite;
+          opacity: 0.6;
+        }
+        @keyframes bounceIndicator {
+          0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+          40% { transform: translateY(-20px) translateX(-50%); }
+          60% { transform: translateY(-10px) translateX(-50%); }
+        }
+      `}</style>
+
+      {/* Background Grid and Glow */}
+      <div className="modal-bg-grid" />
+      <div className="modal-bg-glow" />
+
+      {/* Floating Control Bar */}
+      <header className="fixed top-4 left-4 right-4 z-50 flex items-center justify-between pointer-events-none">
         <button
           type="button"
           onClick={onClose}
-          aria-label="Cerrar guion de presentación"
-          className="absolute top-4 right-4 rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          aria-label="Cerrar presentación y volver al laboratorio"
+          className="pointer-events-auto flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-slate-900/80 px-3.5 py-2 text-xs font-semibold text-cyan-300 shadow-xl backdrop-blur-md transition-all hover:bg-cyan-950/80 hover:text-white hover:border-cyan-400"
         >
-          <X className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
+          <span>Volver al Laboratorio (Esc)</span>
         </button>
 
-        {/* Modal Header */}
-        <div className="flex items-center space-x-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
-          <Sparkles className="h-4 w-4" />
-          <span>Guion de PoC — Paso {currentStep.step} de {PRESENTATION_STEPS.length}</span>
-        </div>
-
-        <h3 id="presentation-step-title" className="text-xl font-black text-white">{currentStep.title}</h3>
-        <p className="text-xs text-cyan-300/80 font-medium mt-0.5 mb-4">{currentStep.tagline}</p>
-
-        {/* Content Body */}
-        <div className="rounded-xl border border-slate-800 bg-cyber-850 p-5 min-h-[220px]">
-          {currentStep.content}
-          <div className="mt-4 rounded-lg border border-cyan-500/25 bg-cyan-950/25 p-3 text-xs leading-relaxed text-cyan-100">
-            <strong className="mb-1 block text-cyan-300">Acción para mostrar</strong>
-            {currentStep.demoAction}
+        <div className="pointer-events-auto flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-400 backdrop-blur-md">
+            <ShieldAlert className="h-3.5 w-3.5 text-cyan-400" />
+            <span>VoiceShield Lab — Presentación</span>
           </div>
-        </div>
 
-        {/* Navigation Footer */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
           <button
-            onClick={handlePrev}
-            disabled={currentStepIndex === 0}
-            className="flex items-center space-x-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 disabled:opacity-30 transition"
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-slate-300 backdrop-blur-md transition hover:bg-rose-950/80 hover:border-rose-500/50 hover:text-rose-300"
           >
-            <ChevronLeft className="h-4 w-4" />
-            <span>Anterior</span>
+            <X className="h-4 w-4" />
           </button>
+        </div>
+      </header>
 
-          {/* Stepper dots */}
-          <div className="hidden items-center space-x-1.5 sm:flex">
-            {PRESENTATION_STEPS.map((s, idx) => (
-              <button
-                key={idx}
-                type="button"
-                aria-label={`Ir al paso ${s.step}: ${s.title}`}
-                aria-current={idx === currentStepIndex ? "step" : undefined}
-                onClick={() => {
-                  setCurrentStepIndex(idx);
-                }}
-                className={`h-2 rounded-full transition-all ${
-                  idx === currentStepIndex ? "w-6 bg-cyan-400" : "w-2 bg-slate-700 hover:bg-slate-600"
-                }`}
-              />
-            ))}
+      {/* 1. Hero / Inicio */}
+      <section id="hero" className="pres-section flex-col text-center">
+        <div className="reveal max-w-4xl pt-12 sm:pt-0">
+          <div className="inline-block px-4 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-semibold tracking-widest uppercase mb-8">
+            Ingeniería Social & IA
+          </div>
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+            ¿Por qué una llamada puede{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
+              engañarnos?
+            </span>
+          </h1>
+          <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto font-light">
+            Imagina que un familiar te pide dinero urgente... la voz es idéntica. <br />
+            <strong className="text-white font-semibold">¿Y si no es él?</strong>
+          </p>
+          <i className="fa-solid fa-phone-volume text-5xl text-neon-blue animate-pulse"></i>
+        </div>
+        <div className="scroll-indicator-anim">
+          <span className="text-xs tracking-widest uppercase text-slate-500 block mb-2 font-mono">
+            Scroll
+          </span>
+          <i className="fa-solid fa-chevron-down text-slate-500"></i>
+        </div>
+      </section>
+
+      {/* 2. El Ataque de Vishing */}
+      <section id="attack" className="pres-section flex-col">
+        <div className="reveal max-w-6xl w-full">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
+            El Ataque de <span className="text-neon-blue">Vishing</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Card 1 */}
+            <div className="reveal delay-100 bg-slate-900/50 backdrop-blur-sm p-8 rounded-2xl box-neon-blue text-center flex flex-col items-center">
+              <div className="w-20 h-20 rounded-full bg-cyan-500/10 flex items-center justify-center mb-6 border border-cyan-500/30">
+                <i className="fa-solid fa-microphone-lines text-3xl text-cyan-400"></i>
+              </div>
+              <h3 className="text-2xl font-bold mb-4">1. Preparación</h3>
+              <p className="text-slate-400">
+                Clonación de la voz mediante IA a partir de muestras cortas (3-15 seg).
+              </p>
+            </div>
+            {/* Card 2 */}
+            <div className="reveal delay-200 bg-slate-900/50 backdrop-blur-sm p-8 rounded-2xl box-neon-blue text-center flex flex-col items-center relative">
+              <div className="hidden md:block absolute top-1/4 -left-4 w-8 border-t-2 border-dashed border-cyan-500/30"></div>
+              <div className="w-20 h-20 rounded-full bg-blue-500/10 flex items-center justify-center mb-6 border border-blue-500/30">
+                <i className="fa-solid fa-user-secret text-3xl text-blue-400"></i>
+              </div>
+              <h3 className="text-2xl font-bold mb-4">2. Interacción</h3>
+              <p className="text-slate-400">
+                Aplicación de ingeniería social: urgencia, autoridad y presión psicológica.
+              </p>
+            </div>
+            {/* Card 3 */}
+            <div className="reveal delay-300 bg-slate-900/50 backdrop-blur-sm p-8 rounded-2xl box-neon-blue text-center flex flex-col items-center relative">
+              <div className="hidden md:block absolute top-1/4 -left-4 w-8 border-t-2 border-dashed border-cyan-500/30"></div>
+              <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6 border border-red-500/30">
+                <i className="fa-solid fa-money-bill-transfer text-3xl text-red-400"></i>
+              </div>
+              <h3 className="text-2xl font-bold mb-4">3. Acción</h3>
+              <p className="text-slate-400">
+                Solicitud de transferencias, robo de credenciales o bypass de MFA.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. La Amenaza */}
+      <section id="threat" className="pres-section flex-col text-center">
+        <div className="reveal max-w-4xl bg-slate-900/80 p-8 sm:p-12 rounded-3xl border border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.1)] backdrop-blur-md">
+          <i className="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-8 animate-pulse"></i>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight">
+            Detectar una voz sintética <br />
+            <span className="text-red-400 underline decoration-red-500/50 underline-offset-8">
+              NO equivale
+            </span>{" "}
+            a detectar un fraude
+          </h2>
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto">
+            Los ciberdelincuentes utilizan tanto voces clonadas como reales. <br />
+            La verdadera amenaza reside en la <strong>intención semántica</strong> del mensaje y la
+            manipulación psicológica.
+          </p>
+        </div>
+      </section>
+
+      {/* 4. VoiceShield Lab */}
+      <section id="lab" className="pres-section flex-col">
+        <div className="reveal max-w-5xl w-full">
+          <div className="flex flex-col md:flex-row items-center gap-12">
+            <div className="flex-1 text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-emerald-500/30 text-emerald-400 mb-6 text-sm">
+                <i className="fa-solid fa-flask"></i> Entorno de Prueba
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                VoiceShield <span className="text-neon-green">Lab</span>
+              </h2>
+              <p className="text-lg text-slate-400 mb-6">
+                Metodología diseñada para generar clones autorizados y analizar vectores de ataque.
+              </p>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <i className="fa-solid fa-microchip text-emerald-400 mt-1"></i>
+                  <div>
+                    <h4 className="font-bold text-white">Qwen3-TTS local</h4>
+                    <p className="text-sm text-slate-400">
+                      Generación local condicionada por una muestra de voz autorizada.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <i className="fa-solid fa-code-compare text-emerald-400 mt-1"></i>
+                  <div>
+                    <h4 className="font-bold text-white">4 Escenarios de Prueba</h4>
+                    <p className="text-sm text-slate-400">
+                      Comparación directa: Voz Real vs. Voz Sintética con y sin manipulación.
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div className="flex-1">
+              <div className="relative w-full aspect-square max-w-md mx-auto">
+                <div className="absolute inset-0 rounded-full border border-dashed border-emerald-500/30 animate-[spin_20s_linear_infinite]"></div>
+                <div className="absolute inset-4 rounded-full border border-emerald-500/20 animate-[spin_15s_linear_infinite_reverse]"></div>
+                <div className="absolute inset-0 flex items-center justify-center flex-col text-center p-8 bg-slate-900/80 rounded-full border border-emerald-500/50 backdrop-blur shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                  <i className="fa-solid fa-shield-halved text-6xl text-emerald-400 mb-4"></i>
+                  <h3 className="text-xl font-bold">
+                    Arquitectura <br />
+                    Cero Confianza
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. El Escudo (Defensa) */}
+      <section id="shield" className="pres-section flex-col">
+        <div className="reveal max-w-6xl w-full">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
+            Mecanismos de{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+              Defensa
+            </span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* AASIST */}
+            <div className="reveal delay-100 bg-gradient-to-b from-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+              <i className="fa-solid fa-wave-square text-4xl text-blue-400 mb-6 block"></i>
+              <h3 className="text-2xl font-bold mb-3 text-white">AASIST</h3>
+              <p className="text-slate-400 text-sm">
+                Modelo avanzado para la identificación de huellas acústicas y artefactos propios de
+                la síntesis vocal generada por IA.
+              </p>
+            </div>
+            {/* PerTh */}
+            <div className="reveal delay-200 bg-gradient-to-b from-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-700 hover:border-purple-500/50 transition-colors">
+              <i className="fa-solid fa-fingerprint text-4xl text-purple-400 mb-6 block"></i>
+              <h3 className="text-2xl font-bold mb-3 text-white">PerTh</h3>
+              <p className="text-slate-400 text-sm">
+                Sistema de verificación de marcas de agua digitales imperceptibles incrustadas
+                durante la generación de la voz sintética.
+              </p>
+            </div>
+            {/* Transcripción */}
+            <div className="reveal delay-300 bg-gradient-to-b from-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-700 hover:border-cyan-500/50 transition-colors">
+              <i className="fa-solid fa-language text-4xl text-cyan-400 mb-6 block"></i>
+              <h3 className="text-2xl font-bold mb-3 text-white">Whisper + Gemma</h3>
+              <p className="text-slate-400 text-sm">
+                Transcripción precisa y análisis semántico para detectar patrones de engaño,
+                solicitudes urgentes y manipulación de contexto.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Conclusión y Regla de Oro */}
+      <section id="conclusion" className="pres-section flex-col text-center relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-64 bg-cyan-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+
+        <div className="reveal max-w-4xl z-10">
+          <i className="fa-solid fa-key text-5xl text-yellow-500 mb-8"></i>
+          <h2 className="text-5xl md:text-7xl font-extrabold mb-8 tracking-tight">
+            La voz{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-yellow-500">
+              ya no es prueba
+            </span>{" "}
+            de identidad.
+          </h2>
+
+          <div className="bg-slate-900/80 p-8 rounded-2xl border border-yellow-500/30 backdrop-blur mt-12 inline-block text-left shadow-[0_0_30px_rgba(234,179,8,0.1)]">
+            <h3 className="text-xl font-bold text-yellow-400 uppercase tracking-wider mb-2 flex items-center gap-3">
+              <i className="fa-solid fa-star"></i> La Regla de Oro
+            </h3>
+            <p className="text-2xl text-white font-medium">
+              Verifica toda solicitud crítica por un <br />
+              <span className="text-cyan-400 font-bold underline decoration-cyan-500/50">
+                canal independiente
+              </span>{" "}
+              (fuera de banda).
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="mt-12 flex flex-wrap justify-center gap-4">
             <button
               type="button"
-              onClick={handleOpenModule}
-              title={`Abrir la etapa en ${currentStep.tab}`}
-              className="flex items-center space-x-1 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-900/60 transition"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-3 font-semibold text-white shadow-lg shadow-cyan-900/50 hover:from-cyan-500 hover:to-blue-500 transition-all border border-cyan-400/30"
             >
-              <span>Abrir módulo</span>
-              <ChevronRight className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
+              <span>Entrar al Laboratorio Interactivo</span>
             </button>
-            {currentStepIndex < PRESENTATION_STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="flex items-center space-x-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-cyan-400 transition"
-              >
-                <span>Siguiente</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex items-center space-x-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400 transition"
-              >
-                <span>Finalizar guion</span>
-              </button>
+            {onJumpToTab && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("generation")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-slate-900/80 px-4 py-3 text-xs font-semibold text-cyan-300 hover:bg-cyan-950 transition-all"
+                >
+                  <Mic className="h-4 w-4" />
+                  <span>Probar clonación con Qwen3-TTS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("simulation")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-slate-900/80 px-4 py-3 text-xs font-semibold text-emerald-300 hover:bg-emerald-950 transition-all"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  <span>Sala de Llamadas 3D</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("detection")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-slate-900/80 px-4 py-3 text-xs font-semibold text-amber-300 hover:bg-amber-950 transition-all"
+                >
+                  <AudioWaveform className="h-4 w-4" />
+                  <span>Detección Acústica</span>
+                </button>
+              </>
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

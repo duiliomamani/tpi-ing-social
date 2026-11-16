@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 class BaseTTSAdapter(ABC):
@@ -15,7 +15,9 @@ class BaseTTSAdapter(ABC):
         reference_audio_path: Optional[str],
         output_path: str,
         consent_granted: bool,
-        apply_watermark: bool = True
+        apply_watermark: bool = True,
+        reference_transcript: Optional[str] = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Synthesize speech with explicit consent verification."""
         pass

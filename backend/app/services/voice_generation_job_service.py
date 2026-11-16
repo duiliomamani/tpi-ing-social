@@ -10,7 +10,7 @@ from app.services.voice_generation_service import voice_generation_service
 
 
 class VoiceGenerationJobService:
-    """In-process job tracking for long-running local F5-TTS synthesis."""
+    """In-process job tracking for local Qwen3-TTS synthesis."""
 
     JOB_TTL_SECONDS = 2 * 60 * 60
 
@@ -40,7 +40,7 @@ class VoiceGenerationJobService:
             self._jobs[job_id] = {
                 "job_id": job_id,
                 "status": "queued",
-                "phase_message": "En cola para el motor local F5-TTS…",
+                "phase_message": "En cola para Qwen3-TTS local…",
                 "created_at": now,
                 "updated_at": now,
                 "result": None,
@@ -80,7 +80,7 @@ class VoiceGenerationJobService:
             job["updated_at"] = self._now()
 
     def _run(self, job_id: str, request: VoiceGenerationRequest) -> None:
-        self._set_progress(job_id, "Iniciando el motor F5-TTS…")
+        self._set_progress(job_id, "Conectando con Qwen3-TTS local…")
         try:
             result = voice_generation_service.generate_voice(
                 text=request.text,
@@ -89,10 +89,6 @@ class VoiceGenerationJobService:
                 consent_granted=request.consent_granted,
                 speaker_alias=request.speaker_alias,
                 apply_perth_watermark=request.apply_perth_watermark,
-                cfg_strength=request.cfg_strength,
-                nfe_step=request.nfe_step,
-                speed=request.speed,
-                seed=request.seed,
                 progress_callback=lambda message: self._set_progress(job_id, message),
             )
             with self._lock:

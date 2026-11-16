@@ -7,7 +7,6 @@ from app.adapters.gemma_adapter import GemmaAdapter
 from app.services.audio_detection_service import audio_detection_service
 from app.services.watermark_detection_service import watermark_detection_service
 from app.services.transcription_service import transcription_service
-from app.services.voice_generation_service import voice_generation_service
 from app.services.call_simulation_service import call_simulation_service
 
 router = APIRouter(prefix="/health", tags=["Salud del Sistema y Modelos"])
@@ -22,14 +21,12 @@ def get_system_health():
     whisper = transcription_service.adapter
     acoustic_detector = audio_detection_service.acoustic_adapter
     perth = watermark_detection_service.adapter
-    f5_tts = voice_generation_service.tts_adapter
     simulator_status = call_simulation_service.status()
 
     g_ok, g_msg = gemma.is_available()
     w_ok, w_msg = whisper.is_available()
     a_ok, a_msg = acoustic_detector.is_available()
     p_ok, p_msg = perth.is_available()
-    f_ok, f_msg = f5_tts.is_available()
 
     device_name = "CPU"
     if torch.backends.mps.is_available():
@@ -68,12 +65,6 @@ def get_system_health():
             status_message=p_msg,
             device="CPU"
         ),
-        "f5_tts": ModelStatus(
-            name=f5_tts.engine_name,
-            available=f_ok,
-            status_message=f_msg,
-            device=f5_tts.device
-        )
     }
 
     hardware = {

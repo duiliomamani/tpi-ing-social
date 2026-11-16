@@ -31,10 +31,6 @@ interface GenerationLabTabProps {
     text: string;
     referenceTranscript: string;
     speakerAlias: string;
-    cfgStrength: number;
-    nfeStep: number;
-    speed: number;
-    seed: number | null;
   }) => void;
   onBusyChange?: (busy: boolean) => void;
 }
@@ -73,11 +69,6 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
   const [textToSynthesize, setTextToSynthesize] = useState(
     "Esta es una demo local de VoiceShield para el laboratorio académico."
   );
-  const [cfgStrength, setCfgStrength] = useState(2.0);
-  const [nfeStep, setNfeStep] = useState(32);
-  const [generationSpeed, setGenerationSpeed] = useState(1.0);
-  const [useFixedSeed, setUseFixedSeed] = useState(true);
-  const [generationSeed, setGenerationSeed] = useState(2026);
 
   useEffect(() => {
     if (initialText?.trim()) setTextToSynthesize(initialText);
@@ -324,11 +315,11 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
       return;
     }
     if (!referenceId) {
-      setErrorMessage("Cargue o grabe una muestra de voz antes de generar con F5-TTS.");
+      setErrorMessage("Cargue o grabe una muestra de voz antes de generar con Qwen3-TTS.");
       return;
     }
     if (referenceInfo?.duration_seconds > 12) {
-      setErrorMessage("Espere a que Whisper prepare un fragmento de 5–12 s antes de generar con F5-TTS.");
+      setErrorMessage("Espere a que Whisper prepare un fragmento de 5–12 s antes de generar con Qwen3-TTS.");
       return;
     }
     if (!referenceTranscript.trim()) {
@@ -341,15 +332,11 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
       setErrorMessage(null);
       generationStartedAtRef.current = Date.now();
       setGenerationElapsedSeconds(0);
-      setGenerationPhase("En cola para el motor local F5-TTS…");
+      setGenerationPhase("En cola para Qwen3-TTS local…");
       const generationContext = {
         text: textToSynthesize.trim(),
         referenceTranscript: referenceTranscript.trim(),
         speakerAlias,
-        cfgStrength,
-        nfeStep,
-        speed: generationSpeed,
-        seed: useFixedSeed ? generationSeed : null,
       };
       const res = await synthesizeVoiceWithProgress({
         text: textToSynthesize,
@@ -358,19 +345,12 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
         consent_granted: consentGranted,
         speaker_alias: speakerAlias,
         apply_perth_watermark: true,
-        cfg_strength: cfgStrength,
-        nfe_step: nfeStep,
-        speed: generationSpeed,
-        seed: generationContext.seed ?? undefined,
       }, setGenerationPhase);
       setGenerationResult(res);
       setGenerationTranscript(textToSynthesize.trim());
       setGenerationReferenceTranscript(referenceTranscript.trim());
       setGenerationPhase("Audio generado correctamente.");
-      onGenerationComplete?.(res, {
-        ...generationContext,
-        seed: res.seed_used ?? generationContext.seed,
-      });
+      onGenerationComplete?.(res, generationContext);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -389,8 +369,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
         </div>
         <h2 className="text-2xl font-black text-white">Generación de Voz Sintética Autorizada</h2>
         <p className="text-xs text-slate-400 mt-1">
-          F5-TTS en español condiciona la generación con tu audio y su transcripción literal.
-          F₀ se muestra como medición; no se fuerza a una frecuencia fija.
+          Qwen3-TTS genera en español a partir de tu audio autorizado y su transcripción literal. El resultado depende de la referencia, el texto y el equipo local.
         </p>
       </div>
 
@@ -595,12 +574,12 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             </div>
           )}
 
-          {/* Prepared F5 reference */}
+          {/* Prepared Qwen reference */}
           {referenceInfo && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs space-y-1">
               <div className="flex items-center text-emerald-400 font-semibold space-x-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Recorte de referencia listo para F5-TTS</span>
+                <span>Recorte de referencia listo para Qwen3-TTS</span>
               </div>
               <div className="text-slate-300 grid grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
                 <span>Duración: {referenceInfo.duration_seconds}s</span>
@@ -626,7 +605,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="reference-transcript" className="text-xs font-semibold text-slate-300">
-                  Transcripción del fragmento para F5-TTS:
+                  Transcripción del fragmento para Qwen3-TTS:
                 </label>
                 {sourceDurationSeconds <= 12 && (
                   <button
@@ -688,11 +667,13 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             <textarea
               id="text-to-synthesize"
               rows={3}
+              maxLength={400}
               value={textToSynthesize}
-              onChange={(e) => setTextToSynthesize(e.target.value)}
+              onChange={(e) => setTextToSynthesize(e.target.value.slice(0, 400))}
               className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-white focus:border-cyan-400 focus:outline-none"
               placeholder="Escriba el texto que la voz clonada debe pronunciar..."
             />
+            <p className="text-right text-[10px] text-slate-500">{textToSynthesize.length}/400 caracteres</p>
           </div>
 
           {isGenerating && (
@@ -702,107 +683,16 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                 <span>{generationPhase || "Esperando avance del motor local…"}</span>
               </div>
               <p className="mt-1 text-[10px] text-slate-400">
-                Tiempo transcurrido: {formatDuration(generationElapsedSeconds)} · F5-TTS no informa un porcentaje fiable durante la inferencia.
+                Tiempo transcurrido: {formatDuration(generationElapsedSeconds)} · la síntesis local puede tardar según el equipo y la longitud del texto.
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p className="text-[10px] leading-relaxed text-slate-400 sm:col-span-2 xl:col-span-4">
-              Punto de partida para comparar: CFG 2.0 · 32 pasos · velocidad 1.0×. Cambiá un ajuste por vez; el resultado depende sobre todo de la referencia limpia y su transcripción exacta.
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p className="text-xs font-semibold text-slate-200">Motor de clonación: Qwen3-TTS 0.6B · MLX</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+              Usa el recorte y la transcripción exacta como referencia. El motor no aplica un bloqueo fijo de tono; la similitud y la naturalidad deben evaluarse escuchando la salida.
             </p>
-            <label className="space-y-2 text-xs text-slate-300">
-              <span className="flex items-center justify-between">
-                <span>Guía CFG</span>
-                <strong className="font-mono text-cyan-300">{cfgStrength.toFixed(2)}</strong>
-              </span>
-              <input
-                type="range"
-                min="0"
-                max="5"
-                step="0.25"
-                value={cfgStrength}
-                onChange={(e) => setCfgStrength(Number(e.target.value))}
-                className="w-full accent-cyan-400"
-              />
-              <span className="block text-[10px] text-slate-500">2.0 es el valor estándar. Subirlo no garantiza más similitud o naturalidad.</span>
-            </label>
-            <div className="space-y-2 text-xs text-slate-300" role="group" aria-label="Pasos de inferencia">
-              <span className="flex items-center justify-between">
-                <span>Pasos de inferencia</span>
-                <strong className="font-mono text-cyan-300">{nfeStep}</strong>
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { value: 16, label: "Demo rápida" },
-                  { value: 24, label: "Intermedio" },
-                  { value: 32, label: "Predeterminado F5" },
-                  { value: 48, label: "Experimental" },
-                ].map((option) => {
-                  const isSelected = nfeStep === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={isSelected}
-                      disabled={isGenerating}
-                      onClick={() => setNfeStep(option.value)}
-                      className={`rounded-md border px-2 py-1.5 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isSelected
-                          ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100"
-                          : "border-slate-700 bg-slate-950/60 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                      }`}
-                    >
-                      <span className="block font-mono text-[11px]">{option.value} pasos</span>
-                      <span className="block text-[9px]">{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="block text-[10px] text-slate-500">32 es el valor estándar de F5-TTS. Más pasos tardan más y no aseguran más naturalidad.</span>
-            </div>
-            <label className="space-y-2 text-xs text-slate-300">
-              <span className="flex items-center justify-between">
-                <span>Velocidad</span>
-                <strong className="font-mono text-cyan-300">{generationSpeed.toFixed(2)}×</strong>
-              </span>
-              <input
-                type="range"
-                min="0.75"
-                max="1.25"
-                step="0.05"
-                value={generationSpeed}
-                onChange={(e) => setGenerationSpeed(Number(e.target.value))}
-                className="w-full accent-cyan-400"
-              />
-              <span className="block text-[10px] text-slate-500">1.0 es neutro; cambia duración, no tono. Textos muy cortos pueden ignorarlo.</span>
-            </label>
-            <div className="space-y-2 text-xs text-slate-300" role="group" aria-label="Semilla de generación">
-              <label className="flex items-center gap-2 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={useFixedSeed}
-                  onChange={(event) => setUseFixedSeed(event.target.checked)}
-                  disabled={isGenerating}
-                  className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-cyan-500"
-                />
-                <span>Fijar semilla para comparar</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="2147483647"
-                step="1"
-                value={generationSeed}
-                onChange={(event) => setGenerationSeed(Math.max(0, Math.min(2147483647, Math.trunc(Number(event.target.value) || 0))))}
-                disabled={!useFixedSeed || isGenerating}
-                aria-label="Semilla numérica de generación"
-                className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-cyan-300 disabled:opacity-50"
-              />
-              <span className="block text-[10px] text-slate-500">
-                La misma semilla ayuda a comparar ajustes; cambiala para probar otra variación. No mejora la voz por sí sola.
-              </span>
-            </div>
           </div>
 
           <button
@@ -821,12 +711,12 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
             {isGenerating ? (
               <>
                 <div className="h-4 w-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
-                <span>{generationPhase || "Generando voz con F5-TTS…"}</span>
+                <span>{generationPhase || "Generando voz con Qwen3-TTS…"}</span>
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" />
-                <span>Clonar voz con F5-TTS</span>
+                <span>Clonar voz con Qwen3-TTS</span>
               </>
             )}
           </button>
@@ -861,7 +751,7 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                   {generationResult.academic_banner}
                 </span>
                 <p className="text-[10px] text-amber-200/80 mt-0.5">
-                  Marca de procedencia del laboratorio: {generationResult.watermark_embedded ? "Agregada" : "No agregada"} | Motor: {generationResult.creator_model} | Semilla: {generationResult.seed_used ?? "no informada"}
+                  Marca de procedencia del laboratorio: {generationResult.watermark_embedded ? "Agregada" : "No agregada"} | Motor: {generationResult.creator_model}
                 </p>
               </div>
 
@@ -886,33 +776,17 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
                 />
               )}
 
-              {/* Perceptual & Forensic Evaluation Metrics */}
+              {/* Synthesis notes */}
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-2 text-xs">
-                <span className="font-semibold text-slate-300">Mediciones de tono para diagnóstico:</span>
+                <span className="font-semibold text-slate-300">Condiciones de síntesis:</span>
                 <div className="grid grid-cols-2 gap-3 text-slate-400 text-[11px] pt-1">
                   <div>
-                    <span className="text-slate-500">F0 Referencia (Titular):</span>{" "}
-                    <strong className="text-white">
-                      {generationResult.ref_pitch_hz ? `${generationResult.ref_pitch_hz} Hz` : "Perfilado"}
-                    </strong>
+                    <span className="text-slate-500">Referencia:</span>{" "}
+                    <strong className="text-white">Audio autorizado y transcripción revisada</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">F0 mediana de salida:</span>{" "}
-                    <strong className="text-emerald-400">
-                      {generationResult.cloned_pitch_hz ? `${generationResult.cloned_pitch_hz} Hz` : "No disponible"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Ajuste global de tono:</span>{" "}
-                    <strong className="text-cyan-400">
-                      {generationResult.pitch_correction_semitones !== undefined && generationResult.pitch_correction_semitones !== null
-                        ? `${generationResult.pitch_correction_semitones > 0 ? "+" : ""}${generationResult.pitch_correction_semitones} st`
-                        : "No aplicado; conserva la entonación"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Referencia de voz:</span>{" "}
-                    <strong className="text-cyan-400">Audio y transcripción de referencia</strong>
+                    <span className="text-slate-500">Tono:</span>{" "}
+                    <strong className="text-cyan-400">Sin bloqueo fijo de frecuencia fundamental</strong>
                   </div>
                   <div>
                     <span className="text-slate-500">Procedencia:</span>{" "}

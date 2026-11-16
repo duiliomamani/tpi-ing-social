@@ -30,11 +30,7 @@ export interface VoiceGenerationResponse {
   watermark_embedded: boolean;
   academic_banner: string;
   generation_time_ms: number;
-  seed_used?: number | null;
   message: string;
-  ref_pitch_hz?: number;
-  cloned_pitch_hz?: number;
-  pitch_correction_semitones?: number;
 }
 
 export interface VoiceGenerationJobResponse {
@@ -231,7 +227,6 @@ export interface DemoSessionReport {
     text: string;
     reference_transcript: string;
     speaker_alias: string;
-    parameters: { cfg_strength: number; nfe_step: number; speed: number; seed: number | null };
   };
   acoustic_analysis?: {
     captured_at: string;

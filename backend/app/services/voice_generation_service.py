@@ -1,7 +1,6 @@
-import os
 import uuid
-from typing import Callable, Dict, Any, Optional
-from app.adapters.f5_tts_adapter import F5TTSAdapter
+from typing import Callable, Optional
+from app.adapters.qwen_tts_adapter import QwenTTSAdapter
 from app.core.config import ensure_data_directories, settings
 from app.core.database import save_audio_record
 from app.models.schemas import VoiceGenerationResponse
@@ -9,7 +8,7 @@ from app.services.watermark_detection_service import watermark_detection_service
 
 class VoiceGenerationService:
     def __init__(self):
-        self.tts_adapter = F5TTSAdapter(watermarker=watermark_detection_service.adapter)
+        self.tts_adapter = QwenTTSAdapter(watermarker=watermark_detection_service.adapter)
 
     def generate_voice(
         self,
@@ -19,10 +18,6 @@ class VoiceGenerationService:
         consent_granted: bool,
         speaker_alias: str = "Participante Autorizado",
         apply_perth_watermark: bool = True,
-        cfg_strength: float = 2.0,
-        nfe_step: int = 32,
-        speed: float = 1.0,
-        seed: Optional[int] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> VoiceGenerationResponse:
         """
@@ -51,10 +46,6 @@ class VoiceGenerationService:
             consent_granted=consent_granted,
             apply_watermark=apply_perth_watermark,
             reference_transcript=reference_transcript,
-            cfg_strength=cfg_strength,
-            nfe_step=nfe_step,
-            speed=speed,
-            seed=seed,
             progress_callback=progress_callback,
         )
 
@@ -83,14 +74,10 @@ class VoiceGenerationService:
             watermark_embedded=result["watermark_embedded"],
             academic_banner=result["academic_banner"],
             generation_time_ms=result["generation_time_ms"],
-            seed_used=result.get("seed_used"),
             message=(
                 "Audio sintético generado bajo autorización explícita"
                 + (" y con marca de procedencia del laboratorio." if result["watermark_embedded"] else ".")
             ),
-            ref_pitch_hz=result.get("ref_pitch_hz"),
-            cloned_pitch_hz=result.get("cloned_pitch_hz"),
-            pitch_correction_semitones=result.get("pitch_correction_semitones")
         )
 
 voice_generation_service = VoiceGenerationService()

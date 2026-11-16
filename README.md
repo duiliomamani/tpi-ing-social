@@ -11,7 +11,7 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 
 **VoiceShield Lab** es una Proof of Concept (PoC) académica para experimentar con la generación autorizada de voz y evaluar audios desde varias capas:
 
-1. **Generación:** Síntesis en español con **F5-TTS**, condicionada por una referencia cuya autorización declara el operador y su transcripción revisada. F₀ es una medición diagnóstica; no se fuerza una frecuencia exacta.
+1. **Generación:** Síntesis local en español con **Qwen3-TTS 0.6B**, condicionada por una referencia cuya autorización declara el operador y su transcripción revisada.
 2. **Análisis de Audio:** Evaluación de muestras propias y audios de referencia con detección acústica, marcas de procedencia y experimentos de robustez.
 3. **Evaluación Multicapa:** Panel de análisis en 4 dimensiones:
    - **Dimensión A (Acústica):** Baseline experimental de VoiceShield; no es la implementación oficial ni un checkpoint preentrenado de AASIST. Sus scores no están calibrados.
@@ -34,7 +34,7 @@ tpi-ing-social/
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
 │   │   │   ├── aasist_adapter.py      # Baseline acústico experimental de VoiceShield
-│   │   │   ├── f5_tts_adapter.py      # F5-TTS español condicionado por audio y transcripción
+│   │   │   ├── qwen_tts_adapter.py    # Qwen3-TTS local condicionado por audio y transcripción
 │   │   │   ├── gemma_adapter.py       # Adaptador Ollama (Qwen3.5 por defecto) + fallback heurístico
 │   │   │   ├── perth_adapter.py       # PerthNet opcional + firma experimental de respaldo
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
@@ -63,7 +63,6 @@ tpi-ing-social/
 │   └── tailwind.config.js
 ├── scripts/
 │   ├── generate_demo_samples.py  # Genera A/B TTS y registra C/D humanos consentidos
-│   ├── download_f5_spanish.py    # Descarga el checkpoint local de F5-Spanish
 │   └── setup_environment.sh      # Preparación opcional para desarrollo nativo
 ├── compose.yaml                 # Frontend, API, Ollama y descarga del modelo
 ├── .env.example                 # Clave local del sintetizador nativo
@@ -128,19 +127,13 @@ La API del sintetizador requiere esa clave compartida. En equipos sin Apple Sili
 
 En **2. Sala de Llamadas**, cargá una grabación propia o autorizada y revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. La sala 3D representa una conversación ficticia: Qwen3.5 genera el siguiente turno, Qwen3-TTS lo reproduce progresivamente y podés responder por texto, micrófono o con acciones defensivas. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
 
-### Pesos del modelo de voz
+### Generación de voz con Qwen3-TTS
 
-La instalación usa el código oficial `f5-tts`. El fine-tune español y su vocabulario se descargan aparte porque los pesos no se versionan en Git. Después de instalar las dependencias, ejecute:
+La pestaña de generación y la sala de llamadas usan Qwen3-TTS Base 0.6B cuantizado a 8 bits mediante MLX/Metal. La referencia y la transcripción se procesan en el servicio local del equipo; no se envían a un proveedor externo. Para iniciar ese servicio, seguí los pasos de instalación de Qwen3-TTS en la sección anterior. La API limita el texto nuevo a 400 caracteres y la transcripción de referencia a 800.
 
-```bash
-backend/.venv/bin/python scripts/download_f5_spanish.py
-```
+Podés cargar una grabación fuente de hasta 10 minutos, escucharla y seleccionar manualmente un fragmento de 5–12 segundos. faster-whisper transcribe localmente ese recorte y el texto queda editable antes de generar. Qwen condiciona la voz con el audio y la transcripción; no aplica un bloqueo fijo de frecuencia fundamental. La similitud y naturalidad deben evaluarse escuchando la salida. El tiempo de generación depende del hardware y la longitud del texto.
 
-El checkpoint pesa aproximadamente 1.35 GB y queda en `backend/weights/f5-spanish`. El backend también descarga el vocoder oficial Vocos la primera vez que carga F5-TTS. Puede cargar una grabación fuente de hasta 10 minutos, escucharla y seleccionar manualmente un fragmento de 5–12 segundos. faster-whisper transcribe localmente ese recorte y su texto queda editable para corregirlo antes de generar. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis del artículo comparativo, KikiVoice, F5-TTS y las limitaciones de calidad y licencia.
-
-El contenedor del backend usa PyTorch CPU, no MPS. F5-TTS puede tardar más dentro de Docker que en el entorno nativo de macOS. Para priorizar la referencia de F5-TTS, la demo parte de CFG 2, 32 pasos y velocidad 1.0; se pueden elegir 16, 24 o 48 pasos según el tiempo disponible. Reducir pasos puede reducir el tiempo y también afectar la salida; más pasos no garantizan una voz más parecida. La semilla fija por defecto permite repetir la entrada de ruido de muestreo en el mismo entorno; cambiarla permite probar otra variación. La app registra la semilla efectivamente usada. F5 recibe referencias de hasta 12 s y el backend limita la duración proyectada de cada inferencia a 30 s. La inferencia se ejecuta localmente cuando ya se descargaron los pesos.
-
-La casilla de consentimiento es una declaración del operador: la aplicación no comprueba quién aparece en el audio ni si esa persona autorizó el uso. No se integra KikiVoice ni se envían referencias a servicios de clonación en la nube.
+La casilla de consentimiento es una declaración del operador: la aplicación no comprueba quién aparece en el audio ni si esa persona autorizó el uso.
 
 El generador A/B necesita Piper en `backend/.venv/bin/piper` y la voz española `es_ES-davefx-medium.onnx` en `backend/weights/piper/`; el repositorio no distribuye ese binario ni esos pesos. Si faltan, la preparación se omite y el catálogo informa que los WAV no están disponibles.
 
@@ -179,7 +172,7 @@ El manifiesto registra hashes y las declaraciones del operador sobre consentimie
 
 ## 🧪 Ejecución de Pruebas Automatizadas
 
-La suite de `backend/tests/test_backend.py` verifica el catálogo y los contratos del detector, la marca, el análisis semántico y el benchmark sobre audios temporales. El benchmark requiere FFmpeg. No ejecuta la síntesis F5-TTS ni descarga modelos:
+La suite de `backend/tests/test_backend.py` verifica el catálogo y los contratos del detector, la marca, el análisis semántico y el benchmark sobre audios temporales. El benchmark requiere FFmpeg. No ejecuta la síntesis de voz ni descarga modelos:
 ```bash
 PYTHONPATH=backend backend/.venv/bin/pytest backend/tests/test_backend.py -v
 ```

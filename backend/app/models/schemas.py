@@ -17,28 +17,19 @@ class SystemHealthResponse(BaseModel):
 
 # ==================== Voice Generation ====================
 class VoiceGenerationRequest(BaseModel):
-    text: str = Field(..., min_length=3, max_length=1000, description="Texto en español a sintetizar")
+    text: str = Field(..., min_length=3, max_length=400, description="Texto en español a sintetizar con Qwen3-TTS")
     reference_audio_id: str = Field(
         ...,
         pattern=r"^ref_[0-9a-f]{10}$",
         description="ID del audio de referencia cargado",
     )
-    reference_transcript: str = Field(..., min_length=1, max_length=2000, description="Transcripción literal del audio de referencia")
+    reference_transcript: str = Field(..., min_length=1, max_length=800, description="Transcripción literal del audio de referencia")
     consent_granted: bool = Field(
         ...,
         description="Declaración booleana del operador sobre autorización; no se verifica legal ni biométricamente",
     )
     speaker_alias: str = Field("Participante Autorizado", description="Alias de la persona titular")
     apply_perth_watermark: bool = Field(True, description="Intentar embeber una marca de procedencia disponible en el entorno")
-    cfg_strength: float = Field(2.0, ge=0.0, le=5.0, description="Guía de generación de F5-TTS")
-    nfe_step: int = Field(32, ge=16, le=64, description="Pasos del muestreo F5-TTS; 32 es el valor predeterminado upstream")
-    speed: float = Field(1.0, ge=0.75, le=1.25, description="Velocidad de reproducción de F5-TTS")
-    seed: Optional[int] = Field(
-        None,
-        ge=0,
-        le=2_147_483_647,
-        description="Semilla opcional para repetir el muestreo en el mismo entorno; nula usa una semilla aleatoria",
-    )
 
     @field_validator("reference_transcript")
     @classmethod
@@ -89,11 +80,7 @@ class VoiceGenerationResponse(BaseModel):
     watermark_embedded: bool
     academic_banner: str
     generation_time_ms: float
-    seed_used: Optional[int] = None
     message: str
-    ref_pitch_hz: Optional[float] = None
-    cloned_pitch_hz: Optional[float] = None
-    pitch_correction_semitones: Optional[float] = None
 
 class VoiceGenerationJobResponse(BaseModel):
     job_id: str

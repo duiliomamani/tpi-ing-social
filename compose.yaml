@@ -22,7 +22,6 @@ services:
       OLLAMA_MODEL: qwen3.5:2b
       QWEN_TTS_BASE_URL: http://host.docker.internal:8001
       QWEN_TTS_API_KEY: ${QWEN_TTS_API_KEY:-local-demo-only}
-      F5_TTS_DEVICE: cpu
       HF_HOME: /root/.cache/huggingface
     ports:
       - "127.0.0.1:${VOICESHIELD_API_PORT:-8003}:8000"

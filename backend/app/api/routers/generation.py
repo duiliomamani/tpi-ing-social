@@ -10,7 +10,6 @@ from app.models.schemas import (
     VoiceReferenceTranscriptionRequest,
     VoiceReferenceTranscriptionResponse,
 )
-from app.adapters.f5_tts_adapter import GenerationInProgressError
 from app.services.voice_generation_service import voice_generation_service
 from app.services.voice_generation_job_service import voice_generation_job_service
 from app.services.audio_processing import normalize_audio_to_wav
@@ -110,7 +109,7 @@ async def upload_voice_reference(
 
 @router.post("/transcribe-reference", response_model=VoiceReferenceTranscriptionResponse)
 def transcribe_voice_reference(request: VoiceReferenceTranscriptionRequest):
-    """Transcribe a source recording locally and prepare a short F5-aligned reference."""
+    """Transcribe a source recording locally and prepare a short Qwen3-TTS reference."""
     if not request.consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -169,7 +168,7 @@ def transcribe_voice_reference(request: VoiceReferenceTranscriptionRequest):
 @router.post("/synthesize", response_model=VoiceGenerationResponse)
 def synthesize_cloned_voice(request: VoiceGenerationRequest):
     """
-    Sintetiza en español con F5-TTS, condicionado por una muestra autorizada
+    Sintetiza en español con Qwen3-TTS, condicionado por una muestra autorizada
     y la transcripción literal de esa muestra.
     """
     if not request.consent_granted:
@@ -190,16 +189,10 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
             consent_granted=request.consent_granted,
             speaker_alias=request.speaker_alias,
             apply_perth_watermark=request.apply_perth_watermark,
-            cfg_strength=request.cfg_strength,
-            nfe_step=request.nfe_step,
-            speed=request.speed,
-            seed=request.seed,
         )
         return response
     except PermissionError as pe:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(pe))
-    except GenerationInProgressError as busy:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(busy))
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
     except Exception as e:
@@ -215,7 +208,7 @@ def synthesize_cloned_voice(request: VoiceGenerationRequest):
     status_code=status.HTTP_202_ACCEPTED,
 )
 def start_voice_generation_job(request: VoiceGenerationRequest):
-    """Start F5-TTS in a background thread and return a pollable job id."""
+    """Start Qwen3-TTS in a background thread and return a pollable job id."""
     if not request.consent_granted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

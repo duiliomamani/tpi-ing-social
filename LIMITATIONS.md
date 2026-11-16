@@ -40,7 +40,7 @@ VoiceShield Lab es una prueba de concepto académica para estudiar generación a
 
 ## 6. Generación de voz y autorización
 
-- F5-TTS usa una referencia de voz breve y una transcripción revisada. La calidad, el parecido, la prosodia y el tiempo dependen de la muestra, el texto, los parámetros y el hardware; igualar F₀ no garantiza similitud de identidad ni naturalidad.
+- Qwen3-TTS usa una referencia de voz breve y una transcripción revisada. La calidad, el parecido, la prosodia y el tiempo dependen de la muestra, el texto y el hardware; el modelo no fija la frecuencia fundamental ni garantiza similitud de identidad o naturalidad.
 - La interfaz solicita autorización y el backend rechaza solicitudes sin la confirmación enviada por el cliente. Es una declaración del operador, no verificación legal o biométrica.
 - La política del proyecto limita el uso a voces propias o consentidas y guiones académicos. No hay verificación automática para impedir una suplantación o detectar una figura pública.
 
@@ -49,7 +49,7 @@ VoiceShield Lab es una prueba de concepto académica para estudiar generación a
 - La acción de limpieza elimina archivos de `uploads`, derivados en `experiments`, WAV generados `synth_*.wav`, grabaciones C/D registradas como humanas y filas de audio, análisis y experimentos en SQLite. Conserva las muestras sintéticas A/B y el código.
 - El endpoint informa el alcance de la operación, pero el borrado ordinario del sistema de archivos no garantiza eliminación forense de bloques, copias de seguridad o almacenamiento sincronizado.
 - Los informes JSON descargados desde el navegador quedan fuera del control del servidor y deben borrarse por separado.
-- Los modelos descargados (F5-TTS, Ollama, faster-whisper, PerthNet/Piper) se guardan en cachés o directorios de pesos; la limpieza de sesión no los elimina.
+- Los modelos descargados (Qwen3-TTS, Ollama, faster-whisper, PerthNet/Piper) se guardan en cachés o directorios de pesos; la limpieza de sesión no los elimina.
 
 ## 8. Lectura recomendada para la defensa
 

@@ -142,12 +142,13 @@ class ScenarioService:
             audio_available = False
             availability_note = "El WAV no se pudo leer como audio válido."
             duration_seconds = 0.0
-        return LabAudioSample(
-            **scenario,
+        sample_data = dict(scenario)
+        sample_data.update(
             duration_seconds=round(duration_seconds, 2),
             audio_available=audio_available,
             availability_note=availability_note,
         )
+        return LabAudioSample(**sample_data)
 
     def get_all_scenarios(self) -> List[LabAudioSample]:
         provenance = self._read_provenance()

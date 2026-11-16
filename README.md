@@ -97,8 +97,10 @@ cp .env.example .env
 docker compose up --build
 ```
 Una vez iniciado:
-- **Frontend Web:** Abre en [http://localhost:3000](http://localhost:3000)
-- **Backend API & Swagger:** Abre en [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Frontend Web:** Abre en [http://localhost:3002](http://localhost:3002)
+- **Backend API & Swagger:** Abre en [http://localhost:8003/docs](http://localhost:8003/docs)
+
+Los puertos publicados por defecto son `3002` y `8003` para convivir con servicios comunes que ya usan `3000` y `8000`. Se pueden cambiar con `VOICESHIELD_FRONTEND_PORT` y `VOICESHIELD_API_PORT` en `.env`; si cambiás el puerto de API, reconstruí frontend y backend con `docker compose up --build`.
 
 Los contenedores de frontend y backend se construyen para producción. La API usa PyTorch CPU; Ollama se ejecuta en su propio contenedor. Las cargas y resultados permanecen en `backend/data`; los pesos de Ollama quedan en su volumen y no se agregan a Git.
 

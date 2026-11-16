@@ -5,8 +5,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${VOICESHIELD_API_PORT:-8003}/api
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${VOICESHIELD_FRONTEND_PORT:-3002}:3000"
     depends_on:
       - backend
     restart: unless-stopped
@@ -23,7 +25,7 @@ services:
       F5_TTS_DEVICE: cpu
       HF_HOME: /root/.cache/huggingface
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${VOICESHIELD_API_PORT:-8003}:8000"
     volumes:
       - ./backend/data:/app/data
       - ./backend/weights:/app/weights

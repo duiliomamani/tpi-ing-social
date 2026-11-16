@@ -4,7 +4,7 @@ import soundfile as sf
 
 from app.adapters.aasist_adapter import VoiceShieldAcousticAdapter
 from app.adapters.perth_adapter import PerThWatermarkAdapter
-from app.adapters.gemma_adapter import GemmaAdapter
+from app.adapters.qwen_llm_adapter import QwenLLMAdapter
 from app.core.config import settings
 from app.core.database import init_db
 from app.models.schemas import (
@@ -70,7 +70,7 @@ def test_provenance_adapter_reports_method_and_status(tmp_path):
 
 
 def test_heuristic_social_engineering_factors_are_labeled_as_fallback():
-    adapter = GemmaAdapter()
+    adapter = QwenLLMAdapter()
     sample_text = (
         "Hola Carlos, soy el Director General. Necesito que hagas una transferencia urgente ya mismo "
         "y me pases el código OTP de seis dígitos. No cortes ni llames a nadie."

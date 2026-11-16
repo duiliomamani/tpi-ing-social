@@ -3,7 +3,7 @@ import torch
 from fastapi import APIRouter
 from app.core.config import settings
 from app.models.schemas import SystemHealthResponse, ModelStatus
-from app.adapters.gemma_adapter import GemmaAdapter
+from app.adapters.qwen_llm_adapter import QwenLLMAdapter
 from app.services.audio_detection_service import audio_detection_service
 from app.services.watermark_detection_service import watermark_detection_service
 from app.services.transcription_service import transcription_service
@@ -13,17 +13,17 @@ router = APIRouter(prefix="/health", tags=["Salud del Sistema y Modelos"])
 
 # Reuse the loaded adapters. Polling health must not allocate new PyTorch
 # models on MPS for every browser refresh.
-gemma_adapter = GemmaAdapter()
+qwen_llm_adapter = QwenLLMAdapter()
 
 @router.get("", response_model=SystemHealthResponse)
 def get_system_health():
-    gemma = gemma_adapter
+    qwen_llm = qwen_llm_adapter
     whisper = transcription_service.adapter
     acoustic_detector = audio_detection_service.acoustic_adapter
     perth = watermark_detection_service.adapter
     simulator_status = call_simulation_service.status()
 
-    g_ok, g_msg = gemma.is_available()
+    q_ok, q_msg = qwen_llm.is_available()
     w_ok, w_msg = whisper.is_available()
     a_ok, a_msg = acoustic_detector.is_available()
     p_ok, p_msg = perth.is_available()
@@ -37,8 +37,8 @@ def get_system_health():
     models = {
         "ollama_qwen3_5": ModelStatus(
             name=f"Modelo local / Ollama ({settings.OLLAMA_MODEL})",
-            available=g_ok and simulator_status["llm_available"],
-            status_message=simulator_status["llm_message"] if not g_ok else g_msg,
+            available=q_ok and simulator_status["llm_available"],
+            status_message=simulator_status["llm_message"] if not q_ok else q_msg,
             device="Local Host (11434)"
         ),
         "qwen3_tts": ModelStatus(

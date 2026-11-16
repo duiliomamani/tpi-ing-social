@@ -20,7 +20,7 @@ Si el sintetizador local no está disponible, la interfaz informa el error. La v
 
 ## Sala de simulación de llamadas
 
-La sala es una conversación ficticia dentro del laboratorio; no realiza llamadas telefónicas ni contacta a terceros. Ollama ejecuta `qwen3.5:2b` para generar los turnos del emisor simulado. Qwen3-TTS genera la voz a partir de la referencia autorizada. El participante responde por texto, micrófono o acciones defensivas. La devolución final identifica señales del guion y decisiones tomadas durante el ejercicio.
+La sala es una conversación ficticia dentro del laboratorio; no realiza llamadas telefónicas ni contacta a terceros. La interfaz acepta un contexto de escenario de hasta 600 caracteres y ofrece como ejemplo un supuesto premio que requiere una transferencia. Ollama ejecuta `qwen3.5:2b` para generar los turnos y analizar el texto de la llamada; Qwen3-TTS genera la voz a partir de la referencia autorizada. El prompt se trata como contexto no confiable. El servidor limita su longitud y elimina números largos, enlaces y algunos identificadores financieros; las instrucciones del sistema prohíben producir cuentas, montos, destinos o pasos de pago. El participante responde por texto, micrófono o acciones defensivas. La devolución final identifica señales del guion y decisiones tomadas durante el ejercicio.
 
 ## Evaluación
 

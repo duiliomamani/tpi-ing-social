@@ -18,7 +18,8 @@ VoiceShield Lab es una prueba de concepto académica para estudiar generación a
 ## 3. Transcripción y análisis semántico
 
 - faster-whisper genera texto localmente. Errores de transcripción, ruido, acento, contexto incompleto o separación de hablantes afectan la revisión posterior.
-- Gemma 3 en Ollama analiza ocho factores si el modelo está disponible. Sin Ollama se ejecuta un motor heurístico por reglas, de menor alcance. La respuesta identifica cuál de los dos motores se usó.
+- Qwen3.5:2B en Ollama analiza ocho factores si el modelo está disponible. Si Ollama no responde, se ejecuta un motor heurístico local de menor alcance; la respuesta identifica qué analizador se usó.
+- El contexto personalizado de la sala de llamadas es una entrada del operador. Se limita a 600 caracteres y se filtran patrones comunes de números, contactos y datos bancarios, pero el filtro no reconoce toda forma de dato sensible; no ingreses información real. La simulación no inicia llamadas ni procesa pagos.
 - El score semántico es una salida del modelo o una suma heurística; no está calibrado como probabilidad de vishing. Las citas y etiquetas requieren revisión humana.
 - La transcripción se trata como evidencia no confiable frente a instrucciones incrustadas; esa separación reduce riesgos de inyección, pero no garantiza eliminar todos los errores del modelo.
 

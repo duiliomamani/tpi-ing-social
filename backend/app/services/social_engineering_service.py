@@ -1,10 +1,10 @@
 from typing import Dict, Any, Optional
-from app.adapters.gemma_adapter import GemmaAdapter
+from app.adapters.qwen_llm_adapter import QwenLLMAdapter
 from app.models.schemas import SocialEngineeringAnalysisResponse, SocialEngineeringFactor
 
 class SocialEngineeringService:
     def __init__(self):
-        self.adapter = GemmaAdapter()
+        self.adapter = QwenLLMAdapter()
 
     def analyze(self, transcript: str, audio_id: Optional[str] = None) -> SocialEngineeringAnalysisResponse:
         result = self.adapter.analyze_social_engineering(transcript)

@@ -11,6 +11,7 @@ from app.services.call_simulation_service import (
     ACTION_TEXT,
     call_simulation_service,
     detect_defensive_action,
+    sanitize_scenario_brief,
     sanitize_for_transcript,
 )
 from app.services.social_engineering_service import social_engineering_service
@@ -89,11 +90,17 @@ async def run_live_call_simulation(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": str(exc)})
             await websocket.close(code=1008)
             return
+        try:
+            scenario_brief = sanitize_scenario_brief(start.get("scenario_prompt"))
+        except ValueError as exc:
+            await websocket.send_json({"type": "error", "message": str(exc)})
+            await websocket.close(code=1008)
+            return
 
         await websocket.send_json({
             "type": "session_started",
             "mode": "local",
-            "scenario": "soporte_it_ficticio",
+            "scenario": "personalizado_ficticio",
             "llm_model": settings.OLLAMA_MODEL,
             "tts_model": settings.QWEN_TTS_MODEL,
         })
@@ -101,7 +108,11 @@ async def run_live_call_simulation(websocket: WebSocket):
         history: List[Dict[str, str]] = []
         caller_lines: List[str] = []
         participant_lines: List[str] = []
-        first_line = await call_simulation_service.generate_caller_line(history, opening=True)
+        first_line = await call_simulation_service.generate_caller_line(
+            history,
+            opening=True,
+            scenario_brief=scenario_brief,
+        )
         history.append({"role": "assistant", "content": first_line})
         caller_lines.append(first_line)
         await _send_audio_line(websocket, first_line, reference_path, reference_transcript)
@@ -157,6 +168,7 @@ async def run_live_call_simulation(websocket: WebSocket):
                 analysis = await _finish_analysis(caller_lines[:-1])
                 await websocket.send_json({
                     "type": "session_ended",
+                    "scenario": "personalizado_ficticio",
                     "outcome": outcome,
                     "outcome_message": outcome_message,
                     "defensive_action": action,
@@ -168,7 +180,10 @@ async def run_live_call_simulation(websocket: WebSocket):
                 })
                 return
 
-            next_line = await call_simulation_service.generate_caller_line(history)
+            next_line = await call_simulation_service.generate_caller_line(
+                history,
+                scenario_brief=scenario_brief,
+            )
             history.append({"role": "assistant", "content": next_line})
             caller_lines.append(next_line)
             await _send_audio_line(websocket, next_line, reference_path, reference_transcript)

@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { ShieldAlert, Presentation, Trash2, FileDown } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronDown, ShieldAlert, Presentation, Trash2, FileDown } from "lucide-react";
 import { purgeLabData } from "@/lib/api";
 
 interface NavbarProps {
@@ -25,15 +25,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   onExportReport,
   localOperationBusy
 }) => {
-  const tabs = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "generation", label: "1. Generación de Voz" },
-    { id: "simulation", label: "2. Sala de Llamadas" },
-    { id: "detection", label: "3. Detección Acústica" },
-    { id: "confidence", label: "4. Factores de Confianza" },
-    { id: "experiments", label: "5. Laboratorio Comparativo" },
-    { id: "conclusions", label: "6. Conclusiones y Protocolo" },
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const primaryTabs = [
+    { id: "dashboard", label: "Inicio" },
+    { id: "generation", label: "1. Voz" },
+    { id: "simulation", label: "2. Sala de llamadas" },
+    { id: "detection", label: "3. Análisis acústico" },
+    { id: "confidence", label: "4. Evaluación de riesgo" },
   ];
+  const secondaryTabs = [
+    { id: "experiments", label: "Benchmark experimental" },
+    { id: "conclusions", label: "Protocolo y conclusiones" },
+  ];
+
+  useEffect(() => {
+    setMobileMoreOpen(false);
+  }, [activeTab]);
 
   const handlePurge = async () => {
     if (localOperationBusy) return;
@@ -50,38 +57,38 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 border-b border-cyan-950/60 bg-cyber-900/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-3">
         {/* Brand */}
         <button
           type="button"
           aria-label="Volver al inicio de VoiceShield Lab"
           onClick={() => setActiveTab("dashboard")}
-          className="flex min-w-0 items-center space-x-2 text-left sm:space-x-3"
+          className="flex shrink-0 items-center space-x-2 text-left sm:space-x-3"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
             <ShieldAlert className="h-6 w-6" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-2">
-              <span className="truncate text-base font-black tracking-wider text-white sm:text-lg">VOICESHIELD</span>
+              <span className="whitespace-nowrap text-sm font-black tracking-[0.1em] text-white sm:text-base">VOICESHIELD</span>
               <span className="hidden rounded border border-cyan-500/30 bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-widest text-cyan-400 sm:inline">
                 LAB PoC
               </span>
             </div>
-            <p className="hidden text-[11px] text-slate-400 sm:block">Generación de voz y análisis acústico local</p>
+            <p className="hidden whitespace-nowrap text-[10px] text-slate-400 sm:block">Voz y análisis acústico local</p>
           </div>
         </button>
 
         {/* Navigation Tabs */}
-        <nav className="hidden lg:flex items-center space-x-1">
-          {tabs.map((tab) => {
+        <nav className="hidden items-center space-x-0.5 xl:flex">
+          {primaryTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 aria-current={isActive ? "page" : undefined}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-all ${
                   isActive
                     ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(0,240,255,0.1)]"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
@@ -91,6 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
+          <MoreNavigationMenu items={secondaryTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
         </nav>
 
         {/* Action Controls */}
@@ -138,20 +146,133 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile nav */}
-      <div className="flex lg:hidden overflow-x-auto px-4 py-2 space-x-2 border-t border-slate-800/60 bg-slate-950/80">
-        {tabs.map((tab) => (
+      <div className="border-t border-slate-800/60 bg-slate-950/80 xl:hidden">
+        <div className="flex space-x-2 overflow-x-auto px-4 py-2">
+          {primaryTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={activeTab === tab.id ? "page" : undefined}
+              className={`whitespace-nowrap rounded px-2.5 py-1 text-xs ${
+                activeTab === tab.id ? "bg-cyan-500/20 font-bold text-cyan-300" : "text-slate-400"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            aria-current={activeTab === tab.id ? "page" : undefined}
-            className={`whitespace-nowrap px-2.5 py-1 text-xs rounded ${
-              activeTab === tab.id ? "bg-cyan-500/20 text-cyan-300 font-bold" : "text-slate-400"
+            type="button"
+            aria-expanded={mobileMoreOpen}
+            aria-controls="more-navigation-mobile"
+            onClick={() => setMobileMoreOpen((value) => !value)}
+            className={`inline-flex shrink-0 items-center gap-1 rounded px-2.5 py-1 text-xs ${
+              secondaryTabs.some((tab) => tab.id === activeTab) || mobileMoreOpen
+                ? "bg-cyan-500/20 font-bold text-cyan-300"
+                : "text-slate-400"
             }`}
           >
-            {tab.label}
+            Más <ChevronDown className={`h-3.5 w-3.5 transition-transform ${mobileMoreOpen ? "rotate-180" : ""}`} />
           </button>
-        ))}
+        </div>
+        {mobileMoreOpen && (
+          <div id="more-navigation-mobile" className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Herramientas complementarias">
+            {secondaryTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                aria-current={activeTab === tab.id ? "page" : undefined}
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-lg border px-3 py-2 text-xs ${
+                  activeTab === tab.id
+                    ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
+                    : "border-slate-700 bg-slate-900 text-slate-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </header>
   );
 };
+
+interface MoreNavigationMenuProps {
+  items: { id: string; label: string }[];
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
+
+function MoreNavigationMenu({ items, activeTab, setActiveTab }: MoreNavigationMenuProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = "more-navigation-desktop";
+  const selected = items.some((item) => item.id === activeTab);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((value) => !value)}
+        className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+          selected || open
+            ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+            : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+        }`}
+      >
+        Más <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div
+          id={menuId}
+          className="absolute right-0 top-full z-50 mt-2 min-w-56 rounded-xl border border-slate-700 bg-slate-950 p-1.5 shadow-2xl"
+          aria-label="Herramientas complementarias"
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={activeTab === item.id ? "page" : undefined}
+              onClick={() => {
+                setActiveTab(item.id);
+                setOpen(false);
+              }}
+              className={`block w-full rounded-lg px-3 py-2 text-left text-xs transition ${
+                activeTab === item.id ? "bg-cyan-500/15 font-semibold text-cyan-200" : "text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

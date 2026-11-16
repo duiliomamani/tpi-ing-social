@@ -19,7 +19,7 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
    - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y evaluación de 8 factores con **Qwen3.5:2B (Ollama)** o un motor heurístico local de respaldo. El score semántico tampoco es una probabilidad calibrada.
    - **Dimensión D (Verificación Out-of-Band):** Registro manual del operador. La aplicación no llama al contacto ni autentica su identidad.
 4. **Laboratorio Comparativo:** Experimento exploratorio con **FFmpeg** sobre dos audios fuente y cuatro condiciones. Reporta las mediciones observadas; no presupone degradación ni estima el desempeño en producción.
-5. **Simulación de llamadas:** Sala 3D local con **Qwen3.5:2B** para generar el diálogo y **Qwen3-TTS Base 0.6B** para sintetizarlo desde una muestra de voz autorizada. El participante responde por texto o micrófono; faster-whisper transcribe localmente y la devolución identifica señales y decisiones defensivas. No se realizan llamadas telefónicas.
+5. **Simulación de llamadas:** Sala 3D local con **Qwen3.5:2B** para generar el diálogo y analizar sus señales, y **Qwen3-TTS Base 0.6B** para sintetizarlo desde una muestra autorizada. Se puede editar un contexto ficticio de hasta 600 caracteres; el backend elimina datos numéricos y de contacto comunes y el modelo tiene instrucciones para no producir destinos ni pasos de pago. El participante responde por texto o micrófono; faster-whisper transcribe localmente. No se realizan llamadas telefónicas.
 6. **Modo Exposición Universitaria:** Guía interactiva paso a paso para la defensa oral del proyecto.
 
 ---
@@ -35,7 +35,7 @@ tpi-ing-social/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
 │   │   │   ├── aasist_adapter.py      # Baseline acústico experimental de VoiceShield
 │   │   │   ├── qwen_tts_adapter.py    # Qwen3-TTS local condicionado por audio y transcripción
-│   │   │   ├── gemma_adapter.py       # Adaptador Ollama (Qwen3.5 por defecto) + fallback heurístico
+│   │   │   ├── qwen_llm_adapter.py     # Qwen3.5 local en Ollama + fallback heurístico
 │   │   │   ├── perth_adapter.py       # PerthNet opcional + firma experimental de respaldo
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
 │   │   ├── api/routers/       # Endpoints REST y WebSocket (FastAPI)
@@ -125,7 +125,7 @@ QWEN_TTS_API_KEY="${QWEN_TTS_API_KEY:-local-demo-only}" PYTHONPATH=backend backe
 
 La API del sintetizador requiere esa clave compartida. En equipos sin Apple Silicon se puede omitir este proceso; la sala informa que usará una voz del navegador sin clonar la muestra.
 
-En **2. Sala de Llamadas**, cargá una grabación propia o autorizada y revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. La sala 3D representa una conversación ficticia: Qwen3.5 genera el siguiente turno, Qwen3-TTS lo reproduce progresivamente y podés responder por texto, micrófono o con acciones defensivas. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
+En **2. Sala de Llamadas**, escribí el contexto ficticio del escenario y cargá una grabación propia o autorizada; por defecto hay un ejemplo de sorteo con solicitud de transferencia. Revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. Qwen3.5 genera el diálogo y analiza sus señales; Qwen3-TTS lo reproduce progresivamente. Podés responder por texto, micrófono o acciones defensivas. La sala es local: no hace llamadas ni procesa transferencias. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
 
 ### Generación de voz con Qwen3-TTS
 

@@ -79,7 +79,7 @@ Debes responder ÚNICAMENTE un documento JSON válido con la siguiente estructur
 }
 """
 
-class GemmaAdapter(BaseLLMAdapter):
+class QwenLLMAdapter(BaseLLMAdapter):
     def __init__(self):
         self.base_url = settings.OLLAMA_BASE_URL.rstrip('/')
         self.model_name = settings.OLLAMA_MODEL

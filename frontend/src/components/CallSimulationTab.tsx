@@ -35,6 +35,10 @@ const RoomCanvas = dynamic(
 type CallPhase = "idle" | "connecting" | "processing" | "speaking" | "listening" | "finished" | "error";
 type Turn = { id: string; speaker: "caller" | "participant"; text: string };
 
+const DEFAULT_SCENARIO_PROMPT =
+  "Quien llama se presenta como el CEO de la empresa ficticia MerchPay, dice que ganaste un sorteo y solicita una transferencia para liberar el premio. La práctica busca reconocer autoridad no verificada, un premio inesperado y un pedido de dinero, y verificarlo por un canal oficial.";
+const MAX_SCENARIO_PROMPT_CHARS = 600;
+
 interface CallSimulationResult {
   scenario: string;
   models: { llm: string; tts: string };
@@ -92,6 +96,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
   const [referenceTranscript, setReferenceTranscript] = useState("");
   const [referenceDuration, setReferenceDuration] = useState<number | null>(null);
   const [referenceUrl, setReferenceUrl] = useState("");
+  const [scenarioPrompt, setScenarioPrompt] = useState(DEFAULT_SCENARIO_PROMPT);
   const [preparingVoice, setPreparingVoice] = useState(false);
   const [phase, setPhase] = useState<CallPhase>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -253,7 +258,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
         break;
       case "session_ended": {
         const completed: CallSimulationResult = {
-          scenario: String(message.scenario || "soporte_it_ficticio"),
+          scenario: String(message.scenario || "personalizado_ficticio"),
           models: message.models || { llm: status?.llm_model || "qwen3.5:2b", tts: status?.tts_model || "qwen3-tts" },
           outcome: String(message.outcome || "practica_finalizada"),
           outcome_message: String(message.outcome_message || ""),
@@ -316,7 +321,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
   };
 
   const startCall = async () => {
-    if (!voiceReferenceId || !referenceTranscript.trim() || !consent) return;
+    if (!voiceReferenceId || !referenceTranscript.trim() || !consent || !scenarioPrompt.trim()) return;
     setError("");
     setTurns([]);
     setResult(null);
@@ -337,6 +342,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
         type: "start",
         reference_audio_id: voiceReferenceId,
         reference_transcript: referenceTranscript.trim(),
+        scenario_prompt: scenarioPrompt.trim(),
         consent_granted: consent,
       }));
       socket.onmessage = (event) => {
@@ -443,7 +449,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
   };
 
   const activeCall = ["connecting", "processing", "speaking", "listening"].includes(phase);
-  const canStart = Boolean(voiceReferenceId && referenceTranscript.trim() && consent && !preparingVoice && !activeCall);
+  const canStart = Boolean(voiceReferenceId && referenceTranscript.trim() && scenarioPrompt.trim() && consent && !preparingVoice && !activeCall);
 
   return (
     <div className="space-y-6">
@@ -482,7 +488,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">Sala de práctica</p>
-              <h2 className="mt-1 text-lg font-bold text-white">Soporte técnico ficticio</h2>
+              <h2 className="mt-1 text-lg font-bold text-white">Escenario de capacitación</h2>
             </div>
             <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCall ? "border-rose-500/30 bg-rose-950/30 text-rose-300" : phase === "finished" ? "border-emerald-500/30 bg-emerald-950/30 text-emerald-300" : "border-slate-700 bg-slate-900 text-slate-400"}`}>
               <span className={`h-2 w-2 rounded-full ${activeCall ? "animate-pulse bg-rose-400" : phase === "finished" ? "bg-emerald-400" : "bg-slate-600"}`} />
@@ -495,7 +501,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
             <div className="pointer-events-none absolute inset-x-4 top-4 flex justify-between gap-3">
               <div className={`rounded-xl border px-3 py-2 backdrop-blur-md ${callerSpeaking ? "border-cyan-400/50 bg-cyan-950/80" : "border-slate-700/70 bg-slate-950/70"}`}>
                 <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-300">Emisor simulado</p>
-                <p className="mt-0.5 text-xs font-semibold text-white">Soporte interno</p>
+                <p className="mt-0.5 text-xs font-semibold text-white">Interlocutor ficticio</p>
               </div>
               <div className={`rounded-xl border px-3 py-2 text-right backdrop-blur-md ${participantSpeaking ? "border-blue-400/50 bg-blue-950/80" : "border-slate-700/70 bg-slate-950/70"}`}>
                 <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-blue-300">Participante</p>
@@ -571,6 +577,39 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
         </section>
 
         <aside className="space-y-5">
+          <section className="rounded-3xl border border-cyan-900/40 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">Guion de práctica</p>
+                <h2 className="mt-1 text-lg font-bold text-white">Definí el escenario</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScenarioPrompt(DEFAULT_SCENARIO_PROMPT)}
+                disabled={activeCall}
+                className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-700 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Usar ejemplo
+              </button>
+            </div>
+            <label htmlFor="call-scenario-prompt" className="mt-4 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              Contexto para generar el diálogo
+              <textarea
+                id="call-scenario-prompt"
+                value={scenarioPrompt}
+                onChange={(event) => setScenarioPrompt(event.target.value.slice(0, MAX_SCENARIO_PROMPT_CHARS))}
+                maxLength={MAX_SCENARIO_PROMPT_CHARS}
+                rows={5}
+                disabled={activeCall || preparingVoice}
+                className="mt-1.5 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-normal normal-case leading-5 text-slate-200 outline-none focus:border-cyan-500 disabled:opacity-60"
+              />
+            </label>
+            <div className="mt-1 flex items-start justify-between gap-3 text-[9px] leading-4 text-slate-500">
+              <span>Solo simulación local. No incluyas cuentas, alias, montos, enlaces ni datos reales.</span>
+              <span className="shrink-0">{scenarioPrompt.length}/{MAX_SCENARIO_PROMPT_CHARS}</span>
+            </div>
+          </section>
+
           <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
             <div className="flex items-start justify-between gap-3">
               <div>

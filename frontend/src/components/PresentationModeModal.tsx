@@ -1,7 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { X, ArrowLeft, ShieldAlert, PhoneCall, Mic, AudioWaveform } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { X, ArrowLeft, ChevronLeft, ChevronRight, ShieldAlert, PhoneCall, Mic, AudioWaveform } from "lucide-react";
+
+const PRESENTATION_SECTIONS = [
+  { id: "hero", title: "Inicio" },
+  { id: "attack", title: "Ataque" },
+  { id: "threat", title: "Amenaza" },
+  { id: "lab", title: "Laboratorio" },
+  { id: "ethics", title: "Ética" },
+  { id: "shield", title: "Defensa" },
+  { id: "limitations", title: "Limitaciones" },
+  { id: "legal", title: "Marco legal" },
+  { id: "recommendations", title: "Recomendaciones" },
+  { id: "conclusion", title: "Conclusión" },
+];
 
 interface PresentationModeModalProps {
   isOpen: boolean;
@@ -15,14 +28,38 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
   onJumpToTab,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState(0);
 
-  // Close on Escape key and prevent body scroll
+  const navigateToSection = useCallback((index: number) => {
+    const nextIndex = Math.max(0, Math.min(index, PRESENTATION_SECTIONS.length - 1));
+    setActiveSection(nextIndex);
+    containerRef.current
+      ?.querySelector<HTMLElement>(`#${PRESENTATION_SECTIONS[nextIndex].id}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  // Close on Escape, navigate with arrow keys, and prevent body scroll.
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName))
+      ) return;
+
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault();
+        navigateToSection(activeSection + 1);
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault();
+        navigateToSection(activeSection - 1);
       }
     };
 
@@ -44,7 +81,40 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [activeSection, isOpen, navigateToSection, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const sections = Array.from(container.querySelectorAll<HTMLElement>(".pres-section"));
+    const updateActiveSection = () => {
+      const centerY = container.getBoundingClientRect().top + container.clientHeight / 2;
+      let closestIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      sections.forEach((section, index) => {
+        const bounds = section.getBoundingClientRect();
+        const distance = centerY < bounds.top
+          ? bounds.top - centerY
+          : centerY > bounds.bottom
+            ? centerY - bounds.bottom
+            : 0;
+        if (distance < closestDistance) {
+          closestIndex = index;
+          closestDistance = distance;
+        }
+      });
+
+      setActiveSection(closestIndex);
+    };
+
+    container.scrollTo({ top: 0, behavior: "auto" });
+    updateActiveSection();
+    container.addEventListener("scroll", updateActiveSection, { passive: true });
+
+    return () => container.removeEventListener("scroll", updateActiveSection);
+  }, [isOpen]);
 
   // Intersection Observer inside the modal scroll container
   useEffect(() => {
@@ -243,7 +313,7 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
         </div>
         <div className="scroll-indicator-anim">
           <span className="text-xs tracking-widest uppercase text-slate-500 block mb-2 font-mono">
-            Scroll
+            Flechas o Siguiente
           </span>
           <i className="fa-solid fa-chevron-down text-slate-500"></i>
         </div>
@@ -817,6 +887,37 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
           </div>
         </div>
       </section>
+
+      <nav
+        aria-label="Navegación de la exposición"
+        className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2"
+      >
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => navigateToSection(activeSection - 1)}
+            disabled={activeSection === 0}
+            aria-label="Sección anterior (flecha izquierda o arriba)"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span>Anterior</span>
+          </button>
+          <span aria-live="polite" className="min-w-12 text-center text-xs font-mono text-cyan-300">
+            {activeSection + 1} / {PRESENTATION_SECTIONS.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => navigateToSection(activeSection + 1)}
+            disabled={activeSection === PRESENTATION_SECTIONS.length - 1}
+            aria-label="Sección siguiente (flecha derecha o abajo)"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-950/80 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span>Siguiente</span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };

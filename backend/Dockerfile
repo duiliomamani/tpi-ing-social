@@ -12,8 +12,11 @@ WORKDIR /app
 COPY requirements.txt ./requirements.txt
 
 # Keep this runtime CPU-only. The MLX voice service runs natively on macOS.
+# PyPI defaults to TorchCodec's CUDA wheel on Linux; install the matching CPU wheel.
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch torchaudio \
-    && pip install -r requirements.txt
+    && pip install -r requirements.txt \
+    && pip install --force-reinstall --no-deps \
+       --index-url https://download.pytorch.org/whl/cpu torchcodec==0.17.0
 
 COPY app ./app
 

@@ -39,9 +39,9 @@ FALLBACK_OPENING = (
     "Hola, te contacto por una solicitud inesperada que requiere una acción. ¿Podés decidirlo durante esta llamada?"
 )
 DEFAULT_SCENARIO_FOLLOWUPS = (
-    "Claro. Para que te entreguemos el premio hace falta una transferencia de validación. La promoción se cierra hoy y estoy dejando las entregas confirmadas ahora.",
-    "Buenísimo. El requisito para liberar el premio es una transferencia de validación; conviene dejarlo resuelto hoy para que se acredite.",
-    "Sí, para recibirlo se pide una transferencia de validación. El sorteo se cierra hoy y todavía puedo dejar confirmada tu entrega.",
+    "Claro. Para recibir el premio hace falta una transferencia de validación; es el requisito para liberar la entrega.",
+    "Sí, la transferencia es necesaria para liberar el premio. Si lo resolvemos ahora, podemos avanzar con la entrega.",
+    "Para que te entreguemos el premio, necesitamos la transferencia de validación. Conviene resolverlo cuanto antes.",
 )
 CUSTOM_SCENARIO_TRANSFER_FOLLOWUPS = (
     "Para que no se demore {goal}, necesitamos organizar {request} cuanto antes. ¿Contamos con vos?",
@@ -413,7 +413,8 @@ class CallSimulationService:
             if scenario_brief == DEFAULT_SCENARIO_BRIEF:
                 followup_instruction = (
                     "Si la persona quiere el premio o pregunta cómo recibirlo, contestá directamente que hace falta "
-                    "una transferencia de validación para liberarlo y que la promoción se cierra hoy. "
+                    "una transferencia de validación para liberarlo. Podés insistir con urgencia leve, sin inventar "
+                    "fechas ni otros hechos. "
                 )
             elif re.search(r"\btransfer\w*\b", _scenario_core(scenario_brief), flags=re.IGNORECASE):
                 followup_instruction = (
@@ -453,7 +454,7 @@ class CallSimulationService:
                 if (
                     _contains_forbidden_simulated_details(text)
                     or _contains_unprovided_person_name(text, scenario_brief)
-                    or (scenario_brief != DEFAULT_SCENARIO_BRIEF and _contains_unprovided_deadline(text, scenario_brief))
+                    or _contains_unprovided_deadline(text, scenario_brief)
                 ):
                     return _fallback_opening(scenario_brief) if opening else _fallback_followup(scenario_brief, history)
                 if opening and scenario_brief == DEFAULT_SCENARIO_BRIEF:

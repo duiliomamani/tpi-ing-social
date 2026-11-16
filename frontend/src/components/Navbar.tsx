@@ -117,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Guided Presentation Mode Button */}
           <button
             onClick={openPresentation}
-            title="Abrir recorrido guiado de presentación"
+            title="Abrir presentación interactiva de VoiceShield Lab"
             className="flex items-center space-x-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-900/40 hover:from-cyan-500 hover:to-blue-500 transition-all border border-cyan-400/30"
           >
             <Presentation className="h-3.5 w-3.5" />

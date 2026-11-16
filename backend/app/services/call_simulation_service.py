@@ -39,9 +39,9 @@ FALLBACK_OPENING = (
     "Hola, te contacto por una solicitud inesperada que requiere una acción. ¿Podés decidirlo durante esta llamada?"
 )
 DEFAULT_SCENARIO_FOLLOWUPS = (
-    "Claro. Para recibir el premio hace falta una transferencia de validación; es el requisito para liberar la entrega.",
-    "Sí, la transferencia es necesaria para liberar el premio. Si lo resolvemos ahora, podemos avanzar con la entrega.",
-    "Para que te entreguemos el premio, necesitamos la transferencia de validación. Conviene resolverlo cuanto antes.",
+    "Para liberar el premio, necesitamos una transferencia. Si querés recibirlo, tenemos que avanzar con eso.",
+    "Sí, hace falta una transferencia para que podamos entregarte el premio. Conviene dejarlo encaminado pronto.",
+    "La transferencia es lo que permitiría entregarte el premio. ¿Podemos avanzar con eso?",
 )
 CUSTOM_SCENARIO_TRANSFER_FOLLOWUPS = (
     "Para que no se demore {goal}, necesitamos organizar {request} cuanto antes. ¿Contamos con vos?",
@@ -413,7 +413,7 @@ class CallSimulationService:
             if scenario_brief == DEFAULT_SCENARIO_BRIEF:
                 followup_instruction = (
                     "Si la persona quiere el premio o pregunta cómo recibirlo, contestá directamente que hace falta "
-                    "una transferencia de validación para liberarlo. Podés insistir con urgencia leve, sin inventar "
+                    "una transferencia para liberarlo. Podés insistir con urgencia leve, sin inventar "
                     "fechas ni otros hechos. "
                 )
             elif re.search(r"\btransfer\w*\b", _scenario_core(scenario_brief), flags=re.IGNORECASE):

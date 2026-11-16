@@ -16,10 +16,11 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 3. **Evaluación Multicapa:** Panel de análisis en 4 dimensiones:
    - **Dimensión A (Acústica):** Baseline experimental de VoiceShield; no es la implementación oficial ni un checkpoint preentrenado de AASIST. Sus scores no están calibrados.
    - **Dimensión B (Procedencia):** PerthNet si está instalado; si no, una firma spread-spectrum experimental propia. La detección no acredita identidad, intención ni origen por sí sola.
-   - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y evaluación de 8 factores con **Gemma 3 (Ollama)** o un motor heurístico local de respaldo. El score semántico tampoco es una probabilidad calibrada.
+   - **Dimensión C (Ingeniería Social):** Transcripción con **faster-whisper** y evaluación de 8 factores con **Qwen3.5:2B (Ollama)** o un motor heurístico local de respaldo. El score semántico tampoco es una probabilidad calibrada.
    - **Dimensión D (Verificación Out-of-Band):** Registro manual del operador. La aplicación no llama al contacto ni autentica su identidad.
 4. **Laboratorio Comparativo:** Experimento exploratorio con **FFmpeg** sobre dos audios fuente y cuatro condiciones. Reporta las mediciones observadas; no presupone degradación ni estima el desempeño en producción.
-5. **Modo Exposición Universitaria:** Guía interactiva paso a paso para la defensa oral del proyecto.
+5. **Simulación de llamadas:** Sala 3D local con **Qwen3.5:2B** para generar el diálogo y **Qwen3-TTS Base 0.6B** para sintetizarlo desde una muestra de voz autorizada. El participante responde por texto o micrófono; faster-whisper transcribe localmente y la devolución identifica señales y decisiones defensivas. No se realizan llamadas telefónicas.
+6. **Modo Exposición Universitaria:** Guía interactiva paso a paso para la defensa oral del proyecto.
 
 ---
 
@@ -28,25 +29,32 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 ```
 tpi-ing-social/
 ├── backend/
+│   ├── Dockerfile             # API FastAPI con PyTorch CPU
+│   ├── .dockerignore
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
 │   │   │   ├── aasist_adapter.py      # Baseline acústico experimental de VoiceShield
 │   │   │   ├── f5_tts_adapter.py      # F5-TTS español condicionado por audio y transcripción
-│   │   │   ├── gemma_adapter.py       # Ollama Gemma + fallback heurístico por reglas
+│   │   │   ├── gemma_adapter.py       # Adaptador Ollama (Qwen3.5 por defecto) + fallback heurístico
 │   │   │   ├── perth_adapter.py       # PerthNet opcional + firma experimental de respaldo
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
-│   │   ├── api/routers/       # Endpoints REST (FastAPI)
+│   │   ├── api/routers/       # Endpoints REST y WebSocket (FastAPI)
+│   │   │   └── call_simulation.py     # Turnos y acciones de la sala local
+│   │   ├── qwen_tts_sidecar.py        # Síntesis progresiva aislada con MLX
 │   │   ├── core/              # Configuración y base de datos SQLite
 │   │   ├── models/            # Esquemas Pydantic tipados
-│   │   ├── services/          # Lógica de negocio independiente
+│   │   ├── services/          # Lógica de negocio independiente; incluye call_simulation_service.py
 │   │   └── main.py            # Entrypoint API
 │   ├── data/
 │   │   ├── audio_samples/     # Casos A-D con manifiesto local de procedencia
 │   │   ├── uploads/           # Grabaciones y archivos temporales
 │   │   └── experiments/       # Muestras procesadas con FFmpeg
 │   ├── tests/                 # Suite de pruebas unitarias y de integración
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── requirements-mlx-tts.txt  # Entorno aislado de Qwen3-TTS para Apple Silicon
 ├── frontend/
+│   ├── Dockerfile             # Next.js en modo producción
+│   ├── .dockerignore
 │   ├── src/
 │   │   ├── app/               # Next.js App Router
 │   │   ├── components/        # Dashboard, clonación, detección y análisis
@@ -55,10 +63,10 @@ tpi-ing-social/
 │   └── tailwind.config.js
 ├── scripts/
 │   ├── generate_demo_samples.py  # Genera A/B TTS y registra C/D humanos consentidos
-│   ├── setup_environment.sh      # Instalación automática
-│   ├── start_all.sh              # Lanzador dual Backend + Frontend
-│   ├── run_backend.sh            # Inicia servidor FastAPI
-│   └── run_frontend.sh           # Inicia servidor Next.js
+│   ├── download_f5_spanish.py    # Descarga el checkpoint local de F5-Spanish
+│   └── setup_environment.sh      # Preparación opcional para desarrollo nativo
+├── compose.yaml                 # Frontend, API, Ollama y descarga del modelo
+├── .env.example                 # Clave local del sintetizador nativo
 ├── LIMITATIONS.md             # Documentación exhaustiva de limitaciones
 └── README.md
 ```
@@ -67,14 +75,8 @@ tpi-ing-social/
 
 ## ⚡ Requisitos del Sistema
 
-- **Sistema Operativo:** macOS (optimizado para Apple Silicon M1/M2/M3/M4), Linux (Ubuntu/Debian) o Windows (vía WSL2).
-- **Python:** 3.11 o 3.12 (con `uv` o `venv` y `pip`).
-- **Node.js:** Versión 18 o superior (v20+ recomendada) y `npm`.
-- **FFmpeg:** Instalado en el PATH del sistema (`brew install ffmpeg` en macOS o `apt install ffmpeg` en Linux).
-- **Ollama (Opcional pero recomendado para inferencia LLM real):**
-  - Descargar de [ollama.com](https://ollama.com)
-  - Descargar modelo: `ollama pull gemma3:4b`
-  - *Nota:* Si Ollama no está disponible, se ejecuta un analizador heurístico local. Es una alternativa de menor alcance, no equivalente a Gemma; la interfaz identifica el motor usado.
+- **Docker Desktop** con Docker Compose v2.
+- **Clonación rápida de voz:** macOS con Apple Silicon para Qwen3-TTS vía MLX. MLX debe ejecutarse en macOS; Docker Desktop ejecuta los contenedores dentro de Linux y no expone Metal al contenedor. En otros equipos, la sala ofrece la voz española del navegador como alternativa, sin clonar la muestra.
 
 ---
 
@@ -86,19 +88,43 @@ git clone https://github.com/duiliomamani/tpi-ing-social.git
 cd tpi-ing-social
 ```
 
-### 2. Configuración Rápida Automática
-Ejecute el script de configuración integral (prepara entornos virtuales y dependencias; las muestras Piper se generan solo si el modelo está instalado):
-```bash
-./scripts/setup_environment.sh
-```
+### 2. Iniciar la Aplicación
 
-### 3. Iniciar la Aplicación (Backend + Frontend)
+Levanta el frontend, el backend y Ollama. La primera vez, Docker descarga Qwen3.5:2B en el volumen persistente `ollama_data`; la API espera a que termine esa descarga antes de arrancar.
+
 ```bash
-./scripts/start_all.sh
+cp .env.example .env
+docker compose up --build
 ```
 Una vez iniciado:
 - **Frontend Web:** Abre en [http://localhost:3000](http://localhost:3000)
 - **Backend API & Swagger:** Abre en [http://localhost:8000/docs](http://localhost:8000/docs)
+
+Los contenedores de frontend y backend se construyen para producción. La API usa PyTorch CPU; Ollama se ejecuta en su propio contenedor. Las cargas y resultados permanecen en `backend/data`; los pesos de Ollama quedan en su volumen y no se agregan a Git.
+
+Para detener los servicios, presioná `Ctrl+C` en esa terminal. Para detener y retirar los contenedores, ejecutá `docker compose down`; los pesos descargados y los datos locales se conservan.
+
+### Sintetizador Qwen3-TTS en Apple Silicon
+
+Qwen3-TTS usa MLX/Metal, por eso permanece como un proceso nativo del Mac y se conecta al backend Docker por `host.docker.internal`. La primera vez, prepará su entorno y descargá los pesos:
+
+```bash
+python3.12 -m venv backend/.venv-mlx
+backend/.venv-mlx/bin/python -m pip install -r backend/requirements-mlx-tts.txt
+backend/.venv-mlx/bin/hf download mlx-community/Qwen3-TTS-12Hz-0.6B-Base-8bit
+cp .env.example .env
+```
+
+En otra terminal, desde la raíz del repositorio, iniciá el sintetizador. Si cambiaste `QWEN_TTS_API_KEY` en `.env`, usa el mismo valor en esta terminal.
+
+```bash
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+QWEN_TTS_API_KEY="${QWEN_TTS_API_KEY:-local-demo-only}" PYTHONPATH=backend backend/.venv-mlx/bin/uvicorn app.qwen_tts_sidecar:app --host 0.0.0.0 --port 8001
+```
+
+La API del sintetizador requiere esa clave compartida. En equipos sin Apple Silicon se puede omitir este proceso; la sala informa que usará una voz del navegador sin clonar la muestra.
+
+En **2. Sala de Llamadas**, cargá una grabación propia o autorizada y revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. La sala 3D representa una conversación ficticia: Qwen3.5 genera el siguiente turno, Qwen3-TTS lo reproduce progresivamente y podés responder por texto, micrófono o con acciones defensivas. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
 
 ### Pesos del modelo de voz
 
@@ -110,7 +136,7 @@ backend/.venv/bin/python scripts/download_f5_spanish.py
 
 El checkpoint pesa aproximadamente 1.35 GB y queda en `backend/weights/f5-spanish`. El backend también descarga el vocoder oficial Vocos la primera vez que carga F5-TTS. Puede cargar una grabación fuente de hasta 10 minutos, escucharla y seleccionar manualmente un fragmento de 5–12 segundos. faster-whisper transcribe localmente ese recorte y su texto queda editable para corregirlo antes de generar. Consulte [`docs/investigacion-voz.md`](docs/investigacion-voz.md) para el análisis del artículo comparativo, KikiVoice, F5-TTS y las limitaciones de calidad y licencia.
 
-En Apple Silicon se usa MPS automáticamente. Si macOS no tiene memoria compartida suficiente, el backend reintenta una vez en CPU. Para iniciar directamente en CPU, defina `F5_TTS_DEVICE=cpu` antes de ejecutar `./scripts/start_all.sh`. Para priorizar la referencia de F5-TTS, la demo parte de CFG 2, 32 pasos y velocidad 1.0; se pueden elegir 16, 24 o 48 pasos según el tiempo disponible. Reducir pasos puede reducir el tiempo y también afectar la salida; más pasos no garantizan una voz más parecida. La semilla fija por defecto permite repetir la entrada de ruido de muestreo en el mismo entorno; cambiarla permite probar otra variación. La app registra la semilla efectivamente usada. F5 recibe referencias de hasta 12 s y el backend limita la duración proyectada de cada inferencia a 30 s. La inferencia se ejecuta localmente cuando ya se descargaron los pesos.
+El contenedor del backend usa PyTorch CPU, no MPS. F5-TTS puede tardar más dentro de Docker que en el entorno nativo de macOS. Para priorizar la referencia de F5-TTS, la demo parte de CFG 2, 32 pasos y velocidad 1.0; se pueden elegir 16, 24 o 48 pasos según el tiempo disponible. Reducir pasos puede reducir el tiempo y también afectar la salida; más pasos no garantizan una voz más parecida. La semilla fija por defecto permite repetir la entrada de ruido de muestreo en el mismo entorno; cambiarla permite probar otra variación. La app registra la semilla efectivamente usada. F5 recibe referencias de hasta 12 s y el backend limita la duración proyectada de cada inferencia a 30 s. La inferencia se ejecuta localmente cuando ya se descargaron los pesos.
 
 La casilla de consentimiento es una declaración del operador: la aplicación no comprueba quién aparece en el audio ni si esa persona autorizó el uso. No se integra KikiVoice ni se envían referencias a servicios de clonación en la nube.
 
@@ -118,51 +144,9 @@ El generador A/B necesita Piper en `backend/.venv/bin/piper` y la voz española 
 
 ---
 
-## 💻 Instrucciones Específicas por Sistema Operativo
+## 💻 Ejecución en otros sistemas
 
-### macOS (Apple Silicon MPS)
-```bash
-# 1. Instalar dependencias del sistema con Homebrew
-brew install ffmpeg node python@3.12
-
-# 2. Configurar backend
-python3.12 -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements.txt
-PYTHONPATH=backend backend/.venv/bin/python scripts/generate_demo_samples.py
-
-# 3. Configurar frontend
-cd frontend && npm install && cd ..
-
-# 4. Iniciar servidores
-./scripts/start_all.sh
-```
-
-### Linux (Ubuntu / Debian)
-```bash
-# 1. Dependencias del sistema
-sudo apt update && sudo apt install -y ffmpeg nodejs npm python3.11 python3.11-venv
-
-# 2. Configuración
-chmod +x scripts/*.sh
-./scripts/setup_environment.sh
-./scripts/start_all.sh
-```
-
-### Windows (WSL2 recomendado)
-Se recomienda ejecutar el proyecto dentro de **WSL2 (Ubuntu)** siguiendo las instrucciones de Linux. Alternativamente, en PowerShell:
-```powershell
-# Backend
-python -m venv backend\.venv
-backend\.venv\Scripts\pip install -r backend\requirements.txt
-$env:PYTHONPATH="backend"
-backend\.venv\Scripts\python scripts\generate_demo_samples.py
-backend\.venv\Scripts\uvicorn app.main:app --port 8000 --reload
-
-# Frontend (en otra terminal)
-cd frontend
-npm install
-npm run dev
-```
+El flujo recomendado en macOS, Linux y Windows con Docker Desktop es `docker compose up --build`, siguiendo la puesta en marcha anterior. La sala 3D y el modelo de diálogo funcionan en los contenedores. La síntesis clonada con Qwen3-TTS/MLX requiere macOS con Apple Silicon y se inicia en una terminal aparte; en otros equipos se usa la voz española del navegador como alternativa.
 
 ---
 

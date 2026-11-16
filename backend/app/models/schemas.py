@@ -175,7 +175,7 @@ class AudioAnalysisResponse(BaseModel):
     visualization: AudioVisualizationData
     overall_acoustic_summary: str
 
-# ==================== Social Engineering (Gemma) ====================
+# ==================== Social Engineering (Ollama / Qwen3.5) ====================
 class SocialEngineeringFactor(BaseModel):
     factor_id: str
     factor_name: str

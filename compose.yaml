@@ -1,0 +1,65 @@
+name: voiceshield-lab
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen3.5:2b
+      QWEN_TTS_BASE_URL: http://host.docker.internal:8001
+      QWEN_TTS_API_KEY: ${QWEN_TTS_API_KEY:-local-demo-only}
+      F5_TTS_DEVICE: cpu
+      HF_HOME: /root/.cache/huggingface
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/weights:/app/weights
+      - huggingface_cache:/root/.cache/huggingface
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-model:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
+  ollama-model:
+    image: ollama/ollama:latest
+    entrypoint: ["ollama"]
+    command: ["pull", "qwen3.5:2b"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  ollama_data:
+  huggingface_cache:

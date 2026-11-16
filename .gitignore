@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 backend/.venv/
+backend/.venv-mlx/
 .venv/
 env/
 venv/
@@ -19,6 +20,9 @@ frontend/out/
 frontend/build/
 *.tsbuildinfo
 .npm/
+.env
+.env.*
+!.env.example
 
 # Testing
 .pytest_cache/

@@ -68,7 +68,7 @@ def evaluate_comprehensive_risk(request: ComprehensiveEvaluationRequest):
             trans_res = transcription_service.transcribe_audio(str(target_path))
             transcript_text = trans_res.get("transcript", "")
 
-    # 3. Dimensión C: Análisis Semántico con Gemma 3
+    # 3. Dimensión C: análisis semántico con el modelo local configurado en Ollama
     social_res = social_engineering_service.analyze(transcript_text, audio_id)
 
     # 4. Dimensión D y Síntesis: Evaluación Multicapa y Reglas Operativas

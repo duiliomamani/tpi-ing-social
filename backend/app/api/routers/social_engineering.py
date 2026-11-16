@@ -16,7 +16,7 @@ class AnalyzeTextRequest(BaseModel):
 def analyze_text_content(request: AnalyzeTextRequest):
     """
     Ejecuta el análisis defensivo de ingeniería social sobre el texto transcripto
-    mediante Gemma/Ollama cuando está disponible, o el analizador heurístico local de respaldo.
+    mediante el modelo local configurado en Ollama cuando está disponible, o el analizador heurístico local de respaldo.
     """
     if not request.transcript.strip():
         raise HTTPException(
@@ -35,7 +35,7 @@ def analyze_text_content(request: AnalyzeTextRequest):
 @router.post("/transcribe-and-analyze/{sample_name}", response_model=SocialEngineeringAnalysisResponse)
 def transcribe_and_analyze_audio(sample_name: str):
     """
-    Pipeline: faster-whisper (transcripción local) -> Gemma/Ollama o motor heurístico local.
+    Pipeline: faster-whisper (transcripción local) -> Qwen3.5/Ollama o motor heurístico local.
     """
     candidate_paths = [
         settings.AUDIO_SAMPLES_DIR / sample_name,
@@ -59,7 +59,7 @@ def transcribe_and_analyze_audio(sample_name: str):
     trans_res = transcription_service.transcribe_audio(str(target_path))
     transcript_text = trans_res.get("transcript", "")
 
-    # 2. Análisis semántico con Gemma 3
+    # 2. Análisis semántico con el modelo local configurado en Ollama
     analysis_res = social_engineering_service.analyze(transcript_text, target_path.stem)
     analysis_res.transcription_engine = trans_res.get("engine", "faster-whisper")
     return analysis_res

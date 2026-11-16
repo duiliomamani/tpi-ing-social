@@ -57,8 +57,26 @@ const PRESENTATION_STEPS = [
   },
   {
     step: 3,
+    tab: "simulation",
+    title: "3. Simulación local de llamada",
+    tagline: "El participante escucha, responde y practica la verificación",
+    demoAction: "Iniciá la sala 3D con una referencia de voz autorizada. Respondé por texto o micrófono y cerrá con una acción defensiva.",
+    content: (
+      <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+        <p>
+          Qwen3.5:2B genera los turnos del emisor ficticio y Qwen3-TTS convierte esos turnos en audio usando una muestra autorizada.
+          La respuesta del participante se transcribe localmente y el diálogo termina dentro del laboratorio, sin marcar teléfonos.
+        </p>
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-emerald-200">
+          Practicá cortar la presión, no compartir códigos y verificar por un canal oficial. La evaluación final muestra señales del guion y la respuesta elegida.
+        </p>
+      </div>
+    )
+  },
+  {
+    step: 4,
     tab: "detection",
-    title: "3. Detección acústica experimental",
+    title: "4. Detección acústica experimental",
     tagline: "Señales acústicas y procedencia, con sus limitaciones",
     demoAction: "Analizá el mismo WAV generado o subido. Señalá el motor exacto, el score y la firma consultada; no los presentes como probabilidades de identidad.",
     content: (
@@ -75,9 +93,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 4,
+    step: 5,
     tab: "confidence",
-    title: "4. Revisar el contenido del mensaje",
+    title: "5. Revisar el contenido del mensaje",
     tagline: "La transcripción aporta contexto; una persona debe revisar sus errores",
     demoAction: "Revisá o corregí el texto transcripto antes de ejecutar la evaluación. Mostrá qué indicadores detectó el análisis semántico y con qué evidencia.",
     content: (
@@ -100,9 +118,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 5,
+    step: 6,
     tab: "dashboard",
-    title: "5. Matriz de Confianza y la Regla de Oro",
+    title: "6. Matriz de Confianza y la Regla de Oro",
     tagline: "Evaluación conjunta de audio, contenido e identidad",
     demoAction: "Si hay una grabación D consentida, mostrá que un guion humano puede pedir un OTP. Marcá verificación independiente solo si realmente se hizo fuera del laboratorio.",
     content: (
@@ -119,9 +137,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 6,
+    step: 7,
     tab: "experiments",
-    title: "6. Robustez Acústica y Filtros Telefónicos",
+    title: "7. Robustez Acústica y Filtros Telefónicos",
     tagline: "El impacto de la compresión y el ancho de banda telefónico (PSTN)",
     demoAction: "Si el tiempo y el backend lo permiten, ejecutá el benchmark y comentá los valores observados. No anticipes resultados ni generalices desde pocas muestras.",
     content: (
@@ -138,9 +156,9 @@ const PRESENTATION_STEPS = [
     )
   },
   {
-    step: 7,
+    step: 8,
     tab: "conclusions",
-    title: "7. Conclusiones y Recomendaciones Defensivas",
+    title: "8. Conclusiones y Recomendaciones Defensivas",
     tagline: "Protocolo operativo para organizaciones y saneamiento de datos",
     demoAction: "Cerrá con el protocolo de respuesta, exportá el informe local y purgá los audios temporales cuando termine la exposición.",
     content: (

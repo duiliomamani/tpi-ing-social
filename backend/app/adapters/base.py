@@ -61,7 +61,7 @@ class BaseWatermarkAdapter(ABC):
 class BaseLLMAdapter(ABC):
     @abstractmethod
     def is_available(self) -> Tuple[bool, str]:
-        """Check if Ollama & Gemma 3 are available."""
+        """Check if the configured local Ollama model is available."""
         pass
 
     @abstractmethod

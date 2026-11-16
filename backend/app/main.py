@@ -12,7 +12,8 @@ from app.api.routers import (
     detection,
     social_engineering,
     risk_assessment,
-    experiments
+    experiments,
+    call_simulation,
 )
 from app.services.scenario_service import scenario_service
 
@@ -45,6 +46,7 @@ app.include_router(detection.router, prefix="/api")
 app.include_router(social_engineering.router, prefix="/api")
 app.include_router(risk_assessment.router, prefix="/api")
 app.include_router(experiments.router, prefix="/api")
+app.include_router(call_simulation.router, prefix="/api")
 
 # Endpoint para servir archivos de audio de forma segura
 @app.get("/api/audio/{filename}")

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { DashboardTab } from "@/components/DashboardTab";
 import { GenerationLabTab } from "@/components/GenerationLabTab";
+import { CallSimulationTab } from "@/components/CallSimulationTab";
 import { AcousticDetectionTab } from "@/components/AcousticDetectionTab";
 import { ConfidenceMatrixTab } from "@/components/ConfidenceMatrixTab";
 import { ExperimentsLabTab } from "@/components/ExperimentsLabTab";
@@ -62,7 +63,7 @@ export default function Home() {
   const exportSessionReport = () => {
     const hasResults = Boolean(
       sessionReport.generated_voice || sessionReport.acoustic_analysis ||
-      sessionReport.risk_assessment || sessionReport.experiment
+      sessionReport.risk_assessment || sessionReport.experiment || sessionReport.call_simulation
     );
     if (!hasResults) return;
     const report = { ...sessionReport, exported_at: new Date().toISOString() };
@@ -151,7 +152,7 @@ export default function Home() {
 
   const reportAvailable = Boolean(
     sessionReport.generated_voice || sessionReport.acoustic_analysis ||
-    sessionReport.risk_assessment || sessionReport.experiment
+    sessionReport.risk_assessment || sessionReport.experiment || sessionReport.call_simulation
   );
 
   const resetSessionAfterPurge = () => {
@@ -239,6 +240,18 @@ export default function Home() {
                   setDemoAudio({ filename, transcript });
                   navigateToTab("detection");
                 }}
+              />
+            </div>
+          )}
+          {visitedTabs.includes("simulation") && (
+            <div hidden={activeTab !== "simulation"}>
+              <CallSimulationTab
+                key={`simulation-${sessionVersion}`}
+                isActive={activeTab === "simulation"}
+                onBusyChange={handleLocalOperationBusy}
+                onComplete={(result) => updateSessionReport({
+                  call_simulation: { captured_at: new Date().toISOString(), ...result },
+                })}
               />
             </div>
           )}

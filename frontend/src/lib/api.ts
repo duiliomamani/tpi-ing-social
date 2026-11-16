@@ -3,6 +3,7 @@ import {
   VoiceGenerationResponse,
   VoiceGenerationJobResponse,
   VoiceReferenceTranscriptionResponse,
+  CallSimulationStatus,
   LabAudioSample,
   AudioAnalysisResponse,
   SocialEngineeringAnalysisResponse,
@@ -44,6 +45,18 @@ export async function fetchHealth(): Promise<SystemHealthResponse> {
   const res = await fetch(`${API_BASE}/health`);
   if (!res.ok) throw new Error(await responseErrorMessage(res, "Error consultando estado de salud del sistema"));
   return res.json();
+}
+
+export async function fetchCallSimulationStatus(): Promise<CallSimulationStatus> {
+  const res = await fetch(`${API_BASE}/call-simulation/status`);
+  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error consultando los motores de la sala de llamadas"));
+  return res.json();
+}
+
+export function callSimulationWebSocketUrl(): string {
+  const url = new URL(`${API_BASE}/call-simulation/live`);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
 }
 
 export async function fetchLabSamples(): Promise<LabAudioSample[]> {

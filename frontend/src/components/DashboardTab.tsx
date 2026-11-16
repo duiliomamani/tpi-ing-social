@@ -12,6 +12,7 @@ import {
   Layers,
   Mic,
   Play,
+  PhoneCall,
   Sparkles,
   ShieldCheck,
   TriangleAlert,
@@ -35,7 +36,7 @@ interface DashboardTabProps {
 const WORKFLOW_STEPS = [
   {
     number: "01",
-    title: "Preparar una muestra",
+    title: "Preparar una voz autorizada",
     description: "Elegí un caso en la matriz o generá una voz sintética con una referencia autorizada.",
     destination: "generation",
     action: "Preparar audio",
@@ -44,6 +45,15 @@ const WORKFLOW_STEPS = [
   },
   {
     number: "02",
+    title: "Simular una llamada",
+    description: "Atendé una llamada ficticia en la sala 3D y practicá cómo verificar una solicitud inesperada.",
+    destination: "simulation",
+    action: "Abrir sala",
+    icon: PhoneCall,
+    color: "emerald"
+  },
+  {
+    number: "03",
     title: "Analizar la señal",
     description: "Ejecutá el baseline acústico y la marca de procedencia sobre el mismo audio; revisá qué motor respondió.",
     destination: "detection",
@@ -52,7 +62,7 @@ const WORKFLOW_STEPS = [
     color: "amber"
   },
   {
-    number: "03",
+    number: "04",
     title: "Evaluar el caso",
     description: "Revisá la transcripción, analizá la intención y registrá la verificación por un canal independiente.",
     destination: "confidence",
@@ -61,7 +71,7 @@ const WORKFLOW_STEPS = [
     color: "emerald"
   },
   {
-    number: "04",
+    number: "05",
     title: "Comparar y documentar",
     description: "Medí la robustez ante ruido, compresión y filtro telefónico; exportá el informe de sesión.",
     destination: "experiments",
@@ -76,7 +86,8 @@ const MODEL_CARDS = [
   { key: "faster_whisper", group: "Transcripción local", name: "faster-whisper", fallback: "Transcripción local para referencias y audios" },
   { key: "acoustic_detector", group: "Detección acústica", name: "Detector acústico VoiceShield", fallback: "Baseline experimental local" },
   { key: "perth_watermark", group: "Procedencia de audio", name: "Marca de procedencia", fallback: "PerthNet o firma experimental local" },
-  { key: "ollama_gemma3", group: "Análisis semántico", name: "Gemma 3 · Ollama", fallback: "Si Ollama no está, se usa un analizador heurístico local" }
+  { key: "ollama_qwen3_5", group: "Diálogo y análisis semántico", name: "Qwen3.5:2B · Ollama", fallback: "Si Ollama no está, el diálogo usa respuestas locales de respaldo" },
+  { key: "qwen3_tts", group: "Voz de la simulación", name: "Qwen3-TTS 0.6B · MLX", fallback: "Requiere Apple Silicon y el motor local Qwen3-TTS" }
 ] as const;
 
 const STATUS_STYLE = {
@@ -192,7 +203,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onCreateControl
 }) => {
   const stageComplete = [
-    Boolean(sessionReport.generated_voice || sessionReport.acoustic_analysis || sessionReport.risk_assessment),
+    Boolean(sessionReport.generated_voice || sessionReport.call_simulation || sessionReport.acoustic_analysis || sessionReport.risk_assessment),
+    Boolean(sessionReport.call_simulation),
     Boolean(sessionReport.acoustic_analysis || sessionReport.risk_assessment),
     Boolean(sessionReport.risk_assessment),
     Boolean(sessionReport.experiment),
@@ -202,11 +214,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const stageEvidence = [
     sessionReport.generated_voice
       ? `${sessionReport.generated_voice.result.creator_model} · ${sessionReport.generated_voice.result.duration_seconds}s`
+      : sessionReport.call_simulation
+      ? `Voz de referencia · ${sessionReport.call_simulation.models.tts}`
       : sessionReport.acoustic_analysis
       ? sessionReport.acoustic_analysis.filename
       : sessionReport.risk_assessment
       ? "Audio del escenario evaluado"
       : "Todavía no hay audio en esta sesión",
+    sessionReport.call_simulation
+      ? `${sessionReport.call_simulation.models.llm} · ${sessionReport.call_simulation.outcome}`
+      : "Sala 3D local · llamada ficticia, sin marcado telefónico",
     sessionReport.acoustic_analysis
       ? `${sessionReport.acoustic_analysis.acoustic_detection.engine_used} · marca ${sessionReport.acoustic_analysis.watermark_detection.status}`
       : sessionReport.risk_assessment
@@ -240,7 +257,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             VoiceShield <span className="text-cyan-400">Lab</span>
           </h1>
           <p className="mt-2 text-lg font-medium text-slate-200">
-            Generación consentida de voz y análisis acústico experimental para una demo reproducible.
+            Voz consentida, simulación local de llamadas y análisis acústico experimental.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-slate-400">
             Seguí el audio desde una referencia consentida hasta la evaluación de riesgo. Los resultados son evidencia para el análisis académico, no una certeza automática.
@@ -296,7 +313,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         >
           <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${(completedCount / WORKFLOW_STEPS.length) * 100}%` }} />
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           {WORKFLOW_STEPS.map((step, index) => {
             const Icon = step.icon;
             const isComplete = stageComplete[index];
@@ -312,7 +329,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 key={step.number}
                 type="button"
                 onClick={() => {
-                  if (isComplete && index === 3 && reportAvailable) onExportReport();
+                  if (isComplete && index === 4 && reportAvailable) onExportReport();
                   else if (index === 0 && !isComplete) focusScenarioMatrix();
                   else onNavigate(step.destination);
                 }}
@@ -333,7 +350,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">{step.description}</p>
                 <p className="mt-3 min-h-8 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">{stageEvidence[index]}</p>
                 <span className="mt-3 inline-flex items-center space-x-1.5 text-xs font-semibold text-cyan-300">
-                  <span>{isComplete && index === 3 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext && index === 0 ? "Elegir caso" : isNext ? "Continuar ahora" : step.action}</span>
+                  <span>{isComplete && index === 4 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext && index === 0 ? "Elegir caso" : isNext ? "Continuar ahora" : step.action}</span>
                   <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </span>
               </button>
@@ -361,7 +378,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {MODEL_CARDS.map((model) => {
             const modelStatus = health?.models?.[model.key];
-            const isHeuristicFallback = model.key === "ollama_gemma3" && modelStatus && !modelStatus.available;
+            const isHeuristicFallback = model.key === "ollama_qwen3_5" && modelStatus && !modelStatus.available;
             const availability = !modelStatus
               ? "pending"
               : modelStatus.available

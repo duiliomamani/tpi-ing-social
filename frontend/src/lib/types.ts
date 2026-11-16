@@ -65,6 +65,17 @@ export interface VoiceReferenceTranscriptionResponse {
   engine: string;
 }
 
+export interface CallSimulationStatus {
+  ready: boolean;
+  llm_available: boolean;
+  llm_model: string;
+  llm_message: string;
+  tts_available: boolean;
+  tts_model: string;
+  tts_message: string;
+  mode: "local";
+}
+
 export interface LabAudioSample {
   id: string;
   code: "scenario_a" | "scenario_b" | "scenario_c" | "scenario_d";
@@ -233,4 +244,15 @@ export interface DemoSessionReport {
   };
   risk_assessment?: { captured_at: string; result: MultilayerRiskAssessmentResponse };
   experiment?: { captured_at: string; result: ExperimentResult };
+  call_simulation?: {
+    captured_at: string;
+    scenario: string;
+    models: { llm: string; tts: string };
+    outcome: string;
+    outcome_message?: string;
+    defensive_action?: string | null;
+    caller_transcript: string;
+    participant_transcript: string;
+    risk_analysis?: SocialEngineeringAnalysisResponse;
+  };
 }

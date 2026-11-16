@@ -103,7 +103,7 @@ class GemmaAdapter(BaseLLMAdapter):
         """
         Analizador semántico determinístico de contingencia.
         Se activa cuando Ollama no está disponible. Sus reglas léxicas son una
-        alternativa de menor alcance y no equivalen a la interpretación contextual de Gemma.
+        alternativa de menor alcance y no equivalen a la interpretación contextual de Qwen3.5.
         """
         text = transcript.lower()
         factors: List[Dict[str, Any]] = []
@@ -209,7 +209,7 @@ class GemmaAdapter(BaseLLMAdapter):
 
     def analyze_social_engineering(self, transcript: str) -> Dict[str, Any]:
         """
-        Ejecuta el análisis defensivo mediante Ollama Gemma 3 4B.
+        Ejecuta el análisis defensivo mediante el modelo local configurado en Ollama.
         Aplica aislamiento estricto de prompt contra inyecciones y valida la salida con Pydantic.
         """
         if not transcript or not transcript.strip():
@@ -270,7 +270,7 @@ class GemmaAdapter(BaseLLMAdapter):
                         "semantic_risk_level": level,
                         "analyzer_engine": f"Ollama {self.model_name} (JSON Schema Enforced)",
                         "untrusted_data_defense_applied": True,
-                        "summary": parsed_json.get("summary", "Análisis con Gemma 3 completado exitosamente.")
+                        "summary": parsed_json.get("summary", "Análisis semántico local completado.")
                     }
                 else:
                     return self._heuristic_analysis(transcript)

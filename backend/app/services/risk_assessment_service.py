@@ -59,7 +59,7 @@ class RiskAssessmentService:
         ))
 
         # ---------------------------------------------
-        # Dimensión C: Riesgo de Ingeniería Social (Gemma)
+        # Dimensión C: Riesgo de Ingeniería Social (Qwen3.5/Ollama)
         # ---------------------------------------------
         sem_score = social_analysis.semantic_risk_score
         detected_factors = [f for f in social_analysis.factors if f.estado == "detectado"]

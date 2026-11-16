@@ -376,7 +376,7 @@ export const ConfidenceMatrixTab: React.FC<ConfidenceMatrixTabProps> = ({
             </div>
           </div>
 
-          {/* Gemma 3 4B — 8 Social Engineering Factors Table */}
+          {/* Ollama / Qwen3.5 — 8 Social Engineering Factors Table */}
           {socialAnalysis && (
             <div className="cyber-panel p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">

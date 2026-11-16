@@ -18,7 +18,12 @@ class Settings(BaseModel):
     
     # Model Configurations
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3.5:2b")
+    QWEN_TTS_BASE_URL: str = os.getenv("QWEN_TTS_BASE_URL", "http://127.0.0.1:8001")
+    QWEN_TTS_API_KEY: str = os.getenv("QWEN_TTS_API_KEY", "")
+    QWEN_TTS_MODEL: str = os.getenv(
+        "QWEN_TTS_MODEL", "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-8bit"
+    )
     
     WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")
     WHISPER_LANGUAGE: str = "es"
@@ -32,6 +37,8 @@ class Settings(BaseModel):
     MAX_VOICE_SOURCE_DURATION_SECONDS: float = 600.0  # Allow long source recordings for local transcription
     MAX_VOICE_REFERENCE_DURATION_SECONDS: float = 12.0  # F5-TTS reference limit
     MAX_F5_TOTAL_DURATION_SECONDS: float = 30.0  # Keep one local demo inference bounded
+    MAX_CALL_SIMULATION_TURN_CHARS: int = 600
+    MAX_CALL_SIMULATION_AUDIO_BYTES: int = 5 * 1024 * 1024
     
     # Academic Label
     SYNTHETIC_AUDIO_BANNER: str = "AUDIO SINTÉTICO — DEMOSTRACIÓN ACADÉMICA"

@@ -605,7 +605,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
               />
             </label>
             <div className="mt-1 flex items-start justify-between gap-3 text-[9px] leading-4 text-slate-500">
-              <span>Solo simulación local. No incluyas cuentas, alias, montos, enlaces ni datos reales.</span>
+              <span>Qwen presenta al inicio quién llama, el motivo y el pedido; puede variar la frase y adapta el diálogo a tu respuesta. No ingreses datos reales.</span>
               <span className="shrink-0">{scenarioPrompt.length}/{MAX_SCENARIO_PROMPT_CHARS}</span>
             </div>
           </section>

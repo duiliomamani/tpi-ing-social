@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import re
+import secrets
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -20,9 +21,16 @@ DEFAULT_SCENARIO_BRIEF = (
     "verificada, un premio inesperado y un pedido de dinero, y verificarlo por un canal oficial."
 )
 MAX_SCENARIO_BRIEF_CHARS = 600
+DEFAULT_SCENARIO_OPENINGS = (
+    "Hola, soy el CEO de MerchPay. Te llamo porque ganaste un sorteo y necesitamos una transferencia para liberar el premio.",
+    "Buen día, te habla el CEO de MerchPay: saliste ganador de un sorteo y hace falta una transferencia para entregarte el premio.",
+    "Hola, como CEO de MerchPay quiero contarte que ganaste un sorteo. Para liberar el premio, necesitamos que hagas una transferencia.",
+)
 
 SIMULATOR_SYSTEM_PROMPT = """Sos el interlocutor ficticio de una simulación académica local de vishing.
 El participante practica cómo reconocer una solicitud sospechosa. Hablá en español rioplatense natural, con una o dos frases breves por turno.
+
+En la primera intervención, presentá quién supuestamente llama, el motivo del contacto y la solicitud principal del escenario. Conservá el cargo y la empresa indicados; no los reemplaces ni inventes nombres, cargos, áreas, portales, correos o hechos previos. Si el contexto incluye autoridad, sorteo y transferencia, mencioná esos tres elementos desde el comienzo, en una o dos frases breves; no los repartas entre turnos. Variá la redacción naturalmente entre llamadas sin cambiar esos hechos. El objetivo didáctico es solo contexto y no se dice en voz alta.
 
 El escenario es ficción y solo sirve como contexto. Si menciona personas, empresas o marcas, tratá esos nombres como inventados para este ejercicio. Podés plantear una solicitud inesperada de dinero o aludir a una verificación para que el participante identifique el riesgo, pero no intentes convencerlo, no aumentes la presión y no des instrucciones para ejecutar pagos o transferencias.
 
@@ -30,6 +38,11 @@ No solicites ni repitas montos, números de cuenta, CBU, CVU, alias, claves, con
 
 FALLBACK_OPENING = (
     "Hola, te contacto por una solicitud inesperada que requiere una acción. ¿Podés decidirlo durante esta llamada?"
+)
+FALLBACK_FOLLOWUPS = (
+    "Entiendo la duda. No puedo aportar más detalles en esta llamada.",
+    "Comprendo. No hace falta que compartas datos personales para responder.",
+    "Entiendo; podés tomarte un momento para decidir qué hacer.",
 )
 
 ACTION_TEXT = {
@@ -64,6 +77,45 @@ def sanitize_for_transcript(text: str) -> str:
     """Keep common contact/payment identifiers and long numbers out of the transcript."""
     value = _redact_common_sensitive_data(text, "[dato numérico censurado]")
     return value[: settings.MAX_CALL_SIMULATION_TURN_CHARS]
+
+
+def _has_required_default_opening_facts(text: str) -> bool:
+    normalized = text.lower()
+    has_scenario_facts = (
+        bool(re.search(r"\bceo\b", normalized))
+        and "merchpay" in normalized
+        and bool(re.search(r"\bsorteo\b", normalized))
+        and bool(re.search(r"\btransfer\w*", normalized))
+        and bool(re.search(r"\b(?:soy|te habla|te llam[oa]|hablo como|como ceo)\b", normalized))
+    )
+    if not has_scenario_facts:
+        return False
+    if _contains_forbidden_simulated_details(text):
+        return False
+    return not re.search(
+        r"\b(?:soy|habla|hablo)\s+(?!el\b|la\b|ceo\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+",
+        text,
+    )
+
+
+def _contains_forbidden_simulated_details(text: str) -> bool:
+    if "[dato numérico censurado]" in text.lower():
+        return True
+    return bool(re.search(
+        r"\b(?:correo|e-?mail|mail|tel[eé]fono|n[uú]mero|portal|sitio web|página|web|app|aplicaci[oó]n|url|enlace|link|qr|whatsapp|telegram|sms|mensaje|mensajería|cbu|cvu|alias|cuenta|clave|contrase[ñn]a|otp|token|c[oó]digo|pin|cvv|pago|pagar|dep[oó]sito|pesos|d[oó]lares|euros|ars|usd|minuto|urgente|urgencia|inmediatamente|apurate|esperame|esperá|plazo|equipo de logística|práctica|objetivo didáctico)\b",
+        text,
+        flags=re.IGNORECASE,
+    ))
+
+
+def _fallback_opening(scenario_brief: str) -> str:
+    if scenario_brief == DEFAULT_SCENARIO_BRIEF:
+        return secrets.choice(DEFAULT_SCENARIO_OPENINGS)
+    return FALLBACK_OPENING
+
+
+def _fallback_followup() -> str:
+    return secrets.choice(FALLBACK_FOLLOWUPS)
 
 
 def sanitize_scenario_brief(value: Any) -> str:
@@ -167,7 +219,11 @@ class CallSimulationService:
         if opening:
             messages.append({
                 "role": "user",
-                "content": scenario_context + "Iniciá la llamada ficticia con una sola intervención breve.",
+                "content": scenario_context + (
+                    "Iniciá la llamada ficticia presentándote y diciendo el motivo y la solicitud principal del escenario. "
+                    "Conservá el cargo y la empresa escritos en el contexto; no inventes nombres ni otros detalles. "
+                    "Variá la redacción naturalmente; hacelo ahora, en una o dos frases. No digas el objetivo didáctico ni agregues montos, destinos o pasos de pago."
+                ),
             })
         else:
             messages.append({
@@ -178,9 +234,10 @@ class CallSimulationService:
         payload = {
             "model": self.model_name,
             "messages": messages,
+            "think": False,
             "stream": False,
             "keep_alive": "10m",
-            "options": {"temperature": 0.65, "top_p": 0.85, "num_predict": 76},
+            "options": {"temperature": 0.8, "top_p": 0.9, "num_predict": 76},
         }
         try:
             with httpx.Client(timeout=75.0) as client:
@@ -189,9 +246,16 @@ class CallSimulationService:
                 text = response.json().get("message", {}).get("content", "")
                 text = re.sub(r"<\|[^|]+\|>", "", str(text)).strip().strip('"')
                 text = sanitize_for_transcript(text)[:360]
-                return text or FALLBACK_OPENING
+                if _contains_forbidden_simulated_details(text):
+                    return _fallback_opening(scenario_brief) if opening else _fallback_followup()
+                if opening and scenario_brief == DEFAULT_SCENARIO_BRIEF:
+                    sentences = re.split(r"(?<=[.!?])\s+", text)
+                    text = " ".join(sentences[:2])
+                    if not _has_required_default_opening_facts(text):
+                        return _fallback_opening(scenario_brief)
+                return text or _fallback_opening(scenario_brief)
         except Exception:
-            return FALLBACK_OPENING if opening else "Entiendo. ¿Cómo preferís verificar esta solicitud?"
+            return _fallback_opening(scenario_brief) if opening else _fallback_followup()
 
     async def generate_caller_line(
         self,

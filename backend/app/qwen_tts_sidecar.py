@@ -1,7 +1,9 @@
-"""Isolated MLX sidecar for low-latency local Qwen3-TTS voice cloning."""
+"""Isolated MLX sidecar for local Qwen3-TTS voice cloning."""
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import json
+import math
 import secrets
 import tempfile
 import threading
@@ -22,6 +24,8 @@ app = FastAPI(title="VoiceShield local Qwen3-TTS runtime", version="1.0.0")
 _model = None
 _model_lock = threading.Lock()
 _generation_lock = threading.Lock()
+# MLX Metal streams are thread-local, so load and synthesize on one persistent worker.
+_mlx_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="qwen-mlx")
 _model_loading = False
 _model_error = ""
 _last_cache_check = 0.0
@@ -84,6 +88,29 @@ def _warm_model() -> None:
         print(f"Qwen3-TTS no pudo precargarse: {exc}")
 
 
+def _generate_audio_chunks(text: str, reference_path: str, reference_text: str):
+    """Load, run, and materialize a full utterance on the persistent MLX worker."""
+    model = _get_model()
+    text_token_count = len(model.tokenizer.encode(text))
+    max_tokens = min(512, max(32, math.ceil(text_token_count * 3.5)))
+    audio_chunks = []
+    for result in model.generate(
+        text=text,
+        lang_code="Spanish",
+        ref_audio=reference_path,
+        ref_text=reference_text,
+        max_tokens=max_tokens,
+        temperature=0.75,
+        repetition_penalty=1.1,
+        stream=True,
+        streaming_interval=1.0,
+    ):
+        audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
+        if audio.size:
+            audio_chunks.append((audio, int(getattr(result, "sample_rate", 24000))))
+    return audio_chunks
+
+
 @app.on_event("startup")
 def warm_cached_model() -> None:
     try:
@@ -91,7 +118,7 @@ def warm_cached_model() -> None:
     except ImportError:
         return
     if _weights_are_cached():
-        threading.Thread(target=_warm_model, name="qwen-tts-warmup", daemon=True).start()
+        _mlx_executor.submit(_warm_model)
 
 
 @app.get("/health")
@@ -144,23 +171,16 @@ def stream_speech(request: QwenTTSRequest, _: None = Depends(require_api_key)):
             duration = float(sf.info(str(reference_path)).duration)
             if duration < 3.0 or duration > settings.MAX_VOICE_REFERENCE_DURATION_SECONDS:
                 raise ValueError("El recorte de referencia debe durar entre 3 y 12 segundos.")
-            model = _get_model()
             with _generation_lock:
                 yield (json.dumps({"event": "start", "sample_rate": 24000}) + "\n").encode()
-                for result in model.generate(
-                    text=clean_text,
-                    lang_code="Spanish",
-                    ref_audio=str(reference_path),
-                    ref_text=reference_text,
-                    max_tokens=min(512, max(128, len(clean_text) * 2)),
-                    stream=True,
-                    streaming_interval=0.32,
-                ):
-                    audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
-                    if audio.size == 0:
-                        continue
+                audio_chunks = _mlx_executor.submit(
+                    _generate_audio_chunks,
+                    clean_text,
+                    str(reference_path),
+                    reference_text,
+                ).result()
+                for audio, sample_rate in audio_chunks:
                     encoded = base64.b64encode(audio.astype("<f4", copy=False).tobytes()).decode("ascii")
-                    sample_rate = int(getattr(result, "sample_rate", 24000))
                     yield (json.dumps({
                         "event": "chunk",
                         "audio_base64": encoded,

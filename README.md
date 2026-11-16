@@ -105,6 +105,10 @@ Los contenedores de frontend y backend se construyen para producción. La API us
 
 Para detener los servicios, presioná `Ctrl+C` en esa terminal. Para detener y retirar los contenedores, ejecutá `docker compose down`; los pesos descargados y los datos locales se conservan.
 
+### Presentación independiente
+
+Para mostrar únicamente la presentación interactiva, sin iniciar backend, Ollama ni sintetizador, ejecutá `./presentacion.sh` desde la raíz (o `npm run presentacion` desde `frontend/`). Abre la página estática en el navegador y sirve el contenido solo en `127.0.0.1`; `Ctrl+C` detiene el servidor.
+
 ### Sintetizador Qwen3-TTS en Apple Silicon
 
 Qwen3-TTS usa MLX/Metal, por eso permanece como un proceso nativo del Mac y se conecta al backend Docker por `host.docker.internal`. La primera vez, prepará su entorno y descargá los pesos:

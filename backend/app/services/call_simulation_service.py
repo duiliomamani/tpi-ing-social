@@ -189,6 +189,14 @@ def _has_required_custom_opening_facts(text: str, scenario_brief: str) -> bool:
         (r"\bgerent[ae]\b", r"\bgerent[ae]\b"),
         (r"\bjef[ae]\b", r"\bjef[ae]\b"),
         (r"\bentrenador[ae]?\b", r"\bentrenador[ae]?\b"),
+        (r"\bresponsable\b", r"\bresponsable\b"),
+        (r"\bencargad[oa]\b", r"\bencargad[oa]\b"),
+        (r"\badministrador[ae]?\b", r"\badministrador[ae]?\b"),
+        (r"\bcoordinador[ae]?\b", r"\bcoordinador[ae]?\b"),
+        (r"\basistente\b", r"\basistente\b"),
+        (r"\basesor[ae]?\b", r"\basesor[ae]?\b"),
+        (r"\bfinanzas\b", r"\bfinanzas\b"),
+        (r"\bpremios\b", r"\bpremios\b"),
         (r"\bsoci\w*\b", r"\bsoci\w*\b"),
         (r"\bclub\b", r"\bclub\b"),
         (r"\bpase\b", r"\bpase\b"),
@@ -247,22 +255,31 @@ def _contains_unprovided_person_name(text: str, scenario_brief: str) -> bool:
 
 def _contains_unprovided_role_claim(text: str, scenario_brief: str) -> bool:
     core = _scenario_core(scenario_brief).lower()
-    role_pattern = (
-        r"\bsoy\s+(?:(?:el|la|un|una)\s+)?"
-        r"(?P<role>asistente(?:\s+de\s+(?:seguridad|fraude|soporte))?|"
-        r"asesor[ae]?(?:\s+de\s+(?:seguridad|fraude|soporte))?|agente|representante|"
-        r"ceo|president[ae]|gerent[ae]|director[ae]?|jef[ae]|coordinador[ae]?|"
-        r"tesorero[ae]?|secretario[ae]?)\b"
+    source_words = set(re.findall(r"[a-záéíóúñü]+", core))
+    role_terms = (
+        r"(?:ceo|president[ae]|vicepresident[ae]|director[ae]?|gerent[ae]|jef[ae]|"
+        r"responsable|encargad[oa]|coordinador[ae]?|administrador[ae]?|tesorero[ae]?|"
+        r"secretario[ae]?|asistente|asesor[ae]?|agente|representante|contador[ae]?|"
+        r"analista|especialista|l[ií]der|manager|abogad[oa]|profesor[ae]?|m[eé]dico)"
     )
-    appended_role_pattern = (
-        r",\s*(?P<role>asistente(?:\s+de\s+(?:seguridad|fraude|soporte))?|"
-        r"asesor[ae]?(?:\s+de\s+(?:seguridad|fraude|soporte))?|agente|representante|"
-        r"ceo|president[ae]|gerent[ae]|director[ae]?|jef[ae]|coordinador[ae]?|"
-        r"tesorero[ae]?|secretario[ae]?)\b"
+    identity_patterns = (
+        r"\b(?:soy|me presento como|me identifico como|te habla|les habla|habla|como)\s+"
+        r"(?:(?:el|la|un|una)\s+)?(?P<claim>[^,;.!?]+)",
+        rf",\s*(?P<claim>{role_terms}\b[^,;.!?]*)",
     )
-    for pattern in (role_pattern, appended_role_pattern):
+    for pattern in identity_patterns:
         for match in re.finditer(pattern, text, flags=re.IGNORECASE):
-            if match.group("role").lower() not in core:
+            claim = re.split(
+                r"\b(?:quiero|necesito|llamo|hablo|cuento|digo|voy|vengo|y|pero|porque|para)\b",
+                match.group("claim"),
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0]
+            if not re.search(rf"\b{role_terms}\b", claim, flags=re.IGNORECASE):
+                continue
+            claimed_words = set(re.findall(r"[a-záéíóúñü]+", claim.lower()))
+            claimed_words.difference_update({"el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "en", "como"})
+            if not claimed_words.issubset(source_words):
                 return True
     return False
 
@@ -392,10 +409,35 @@ def _custom_opening_from_context(scenario_brief: str) -> str:
 def _custom_scenario_goal(scenario_brief: str) -> str:
     core = _scenario_core(scenario_brief).lower()
     goal = "lo que te comenté"
-    for term, article in (("pase", "el"), ("premio", "el"), ("inscripción", "la"), ("inscripcion", "la"), ("reserva", "la"), ("cupo", "el")):
+    for term, article in (
+        ("pase", "el"),
+        ("premio", "el"),
+        ("reintegro", "el"),
+        ("devolución", "la"),
+        ("devolucion", "la"),
+        ("nómina", "la"),
+        ("nomina", "la"),
+        ("inscripción", "la"),
+        ("inscripcion", "la"),
+        ("reserva", "la"),
+        ("beneficio", "el"),
+        ("bono", "el"),
+        ("beca", "la"),
+        ("subsidio", "el"),
+        ("cupo", "el"),
+    ):
         if re.search(rf"\b{term}\b", core):
             goal = f"{article} {term}"
             break
+    if goal == "lo que te comenté":
+        match = re.search(
+            r"\b(?:hacer posible|concretar|liberar|recibir|entregar|gestionar|completar|activar|regularizar|resolver|explicar|tramitar|coordinar|procesar|aprobar|solicitar|actualizar|organizar|avanzar con)\s+(?P<goal>[^,.;!?]+)",
+            core,
+        )
+        if match:
+            phrase = re.split(r"\b(?:que|y|porque|para|entonces|asi que|así que|requiere|necesita|solicita|pide)\b", match.group("goal"), maxsplit=1)[0].strip()
+            if phrase:
+                goal = phrase
     return goal
 
 

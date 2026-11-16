@@ -605,7 +605,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
               />
             </label>
             <div className="mt-1 flex items-start justify-between gap-3 text-[9px] leading-4 text-slate-500">
-              <span>Definí quién llama, a quién, el motivo y el pedido. Ej.: “Soy el presidente del Club Cebollitas; llamo a los socios para hacer posible un pase y solicito una transferencia a tesorería”. Usá datos ficticios; Qwen adapta el diálogo.</span>
+              <span>El rol puede ser cualquiera que indiques (CEO, responsable de Finanzas, de Premios, etc.). Definí también a quién llama, el motivo y el pedido. Ej.: “Soy el presidente del Club Cebollitas; llamo a los socios por un pase y una transferencia a tesorería”. Qwen mantiene ese contexto. Usá datos ficticios.</span>
               <span className="shrink-0">{scenarioPrompt.length}/{MAX_SCENARIO_PROMPT_CHARS}</span>
             </div>
           </section>

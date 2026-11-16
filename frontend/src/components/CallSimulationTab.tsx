@@ -593,7 +593,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
               </button>
             </div>
             <label htmlFor="call-scenario-prompt" className="mt-4 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Contexto para generar el diálogo
+              Prompt o contexto de la simulación
               <textarea
                 id="call-scenario-prompt"
                 value={scenarioPrompt}
@@ -605,7 +605,7 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
               />
             </label>
             <div className="mt-1 flex items-start justify-between gap-3 text-[9px] leading-4 text-slate-500">
-              <span>Qwen presenta al inicio quién llama, el motivo y el pedido; puede variar la frase y adapta el diálogo a tu respuesta. No ingreses datos reales.</span>
+              <span>Definí quién llama, a quién, el motivo y el pedido. Ej.: “Soy el presidente del Club Cebollitas; llamo a los socios para hacer posible un pase y solicito una transferencia a tesorería”. Usá datos ficticios; Qwen adapta el diálogo.</span>
               <span className="shrink-0">{scenarioPrompt.length}/{MAX_SCENARIO_PROMPT_CHARS}</span>
             </div>
           </section>

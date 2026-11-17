@@ -70,11 +70,18 @@ def _get_model():
 
 def _generate_audio(text: str, reference_path: str, reference_text: str):
     model = _get_model()
+    # Qwen's library default allows up to 2048 codec tokens. At 12 Hz that
+    # permits nearly three minutes of audio, even when the requested sentence
+    # is short. Bound the search from the requested text so CPU inference in
+    # Docker doesn't run until the backend read timeout.
+    word_count = max(1, len(text.split()))
+    max_new_tokens = min(512, max(96, word_count * 6 + 48))
     waveforms, sample_rate = model.generate_voice_clone(
         text=text,
         language="Spanish",
         ref_audio=reference_path,
         ref_text=reference_text,
+        max_new_tokens=max_new_tokens,
     )
     if not waveforms:
         raise RuntimeError("Qwen3-TTS terminó sin devolver audio.")

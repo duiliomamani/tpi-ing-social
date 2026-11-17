@@ -18,6 +18,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      # Ollama supplies the dialogue model; Qwen3-TTS remains a separate MLX host service.
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: qwen3.5:2b
       QWEN_TTS_BASE_URL: http://host.docker.internal:8001

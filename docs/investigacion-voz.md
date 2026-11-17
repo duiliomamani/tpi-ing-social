@@ -2,7 +2,7 @@
 
 ## Motor integrado
 
-VoiceShield Lab usa Qwen3-TTS Base 0.6B cuantizado a 8 bits mediante MLX/Metal. El servicio de síntesis corre localmente en macOS con Apple Silicon. La pestaña de Generación y la sala de llamadas utilizan el mismo motor y el mismo servicio local; Ollama/Qwen3.5 redacta los turnos de la simulación, mientras Qwen3-TTS los convierte en audio.
+VoiceShield Lab usa Qwen3-TTS Base 0.6B cuantizado a 8 bits mediante MLX/Metal para sintetizar audio. En la implementación actual, ese servicio corre localmente en macOS con Apple Silicon. La pestaña de Generación y la sala de llamadas utilizan el mismo motor; Ollama/Qwen3.5 redacta los turnos de la simulación y Qwen3-TTS los convierte en audio.
 
 La síntesis se condiciona con un recorte de audio autorizado y su transcripción revisada. La aplicación permite cargar una grabación fuente de hasta 10 minutos, seleccionar un tramo continuo de 5–12 segundos y transcribir ese recorte localmente con faster-whisper. El audio y el texto permanecen editables antes de sintetizar. La API limita el texto nuevo a 400 caracteres y la transcripción de referencia a 800.
 
@@ -12,7 +12,7 @@ La marca de procedencia del laboratorio se puede aplicar después de la síntesi
 
 ## Servicio local y contenedores
 
-En Docker Compose, frontend, API y Ollama corren en contenedores. Qwen3-TTS/MLX se ejecuta como proceso nativo de macOS porque Docker Desktop no da acceso a Metal desde el contenedor Linux. La API envía los bytes del recorte al servicio local autenticado, por lo que no hace falta compartir una ruta de archivos entre ambos procesos.
+Docker Compose levanta frontend, API y Ollama con Qwen3.5:2B para el diálogo. Qwen3-TTS no se ejecuta mediante Ollama ni dentro de esos contenedores: en esta implementación se ejecuta como proceso MLX nativo de macOS porque Docker Desktop no da acceso a Metal desde el contenedor Linux. El requisito de Apple Silicon corresponde a este runtime MLX, no a Compose/Ollama; para sintetizar en otros equipos hace falta configurar otro backend compatible. La API del contenedor se conecta a ese servicio del host mediante `host.docker.internal:8001` y envía los bytes del recorte por una conexión autenticada. En Linux o Windows, la aplicación sigue funcionando con Compose y Ollama, pero la voz clonada se reemplaza por la voz española del navegador.
 
 El servicio conserva un trabajador persistente para mantener el contexto requerido por MLX. La salida se reproduce cuando el turno completo está listo; este flujo evita cortes entre fragmentos y prioriza un diálogo claro. La transmisión por fragmentos puede reducir la espera inicial en otros modos, pero no elimina el tiempo de inferencia previo al primer audio.
 

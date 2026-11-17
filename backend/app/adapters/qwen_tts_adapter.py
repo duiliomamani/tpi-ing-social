@@ -19,8 +19,8 @@ class QwenTTSAdapter(BaseTTSAdapter):
     """Generate authorized voice clones through the native local MLX service."""
 
     def __init__(self, watermarker=None):
-        self.engine_name = "Qwen3-TTS 0.6B · MLX"
-        self.device = "Apple Silicon · MLX"
+        self.engine_name = "Qwen3-TTS 0.6B · MLX (servicio local del host)"
+        self.device = "Mac Apple Silicon · MLX sidecar (fuera de Compose/Ollama)"
         self.watermarker = watermarker
         self.base_url = settings.QWEN_TTS_BASE_URL.rstrip("/")
 

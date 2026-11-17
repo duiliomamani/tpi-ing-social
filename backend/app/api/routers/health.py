@@ -39,13 +39,13 @@ def get_system_health():
             name=f"Modelo local / Ollama ({settings.OLLAMA_MODEL})",
             available=q_ok and simulator_status["llm_available"],
             status_message=simulator_status["llm_message"] if not q_ok else q_msg,
-            device="Local Host (11434)"
+            device="Docker Compose · Ollama (11434)"
         ),
         "qwen3_tts": ModelStatus(
-            name="Qwen3-TTS 0.6B · MLX",
+            name="Qwen3-TTS 0.6B · MLX (servicio de voz)",
             available=simulator_status["tts_available"],
             status_message=simulator_status["tts_message"],
-            device="Apple Silicon · servicio local 8001"
+            device="Host Mac Apple Silicon · puerto 8001 (fuera de Compose/Ollama)"
         ),
         "faster_whisper": ModelStatus(
             name=f"faster-whisper ({settings.WHISPER_MODEL_SIZE})",

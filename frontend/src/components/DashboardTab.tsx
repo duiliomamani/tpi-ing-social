@@ -89,7 +89,7 @@ const MODEL_CARDS = [
   { key: "acoustic_detector", group: "Detección acústica", name: "Detector acústico VoiceShield", fallback: "Baseline experimental local" },
   { key: "perth_watermark", group: "Procedencia de audio", name: "Marca de procedencia", fallback: "PerthNet o firma experimental local" },
   { key: "ollama_qwen3_5", group: "Diálogo y análisis semántico", name: "Qwen3.5:2B · Ollama", fallback: "Si Ollama no está, el diálogo usa respuestas locales de respaldo" },
-  { key: "qwen3_tts", group: "Voz de la simulación", name: "Qwen3-TTS 0.6B · MLX", fallback: "Requiere Apple Silicon y el motor local Qwen3-TTS" }
+  { key: "qwen3_tts", group: "Voz de la simulación", name: "Qwen3-TTS 0.6B · MLX en el host", fallback: "Ollama en Compose genera el diálogo; la clonación usa un servicio MLX separado en Mac Apple Silicon. En otros equipos se usa la voz del navegador." }
 ] as const;
 
 const STATUS_STYLE = {

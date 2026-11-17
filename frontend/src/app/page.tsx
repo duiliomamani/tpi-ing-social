@@ -7,14 +7,12 @@ import { GenerationLabTab } from "@/components/GenerationLabTab";
 import { CallSimulationTab } from "@/components/CallSimulationTab";
 import { AcousticDetectionTab } from "@/components/AcousticDetectionTab";
 import { ConfidenceMatrixTab } from "@/components/ConfidenceMatrixTab";
-import { ExperimentsLabTab } from "@/components/ExperimentsLabTab";
 import { ConclusionsTab } from "@/components/ConclusionsTab";
 import { PresentationModeModal } from "@/components/PresentationModeModal";
 import { fetchHealth } from "@/lib/api";
 import {
   AudioAnalysisResponse,
   DemoSessionReport,
-  ExperimentResult,
   LabAudioSample,
   MultilayerRiskAssessmentResponse,
   SystemHealthResponse,
@@ -63,7 +61,7 @@ export default function Home() {
   const exportSessionReport = () => {
     const hasResults = Boolean(
       sessionReport.generated_voice || sessionReport.acoustic_analysis ||
-      sessionReport.risk_assessment || sessionReport.experiment || sessionReport.call_simulation
+      sessionReport.risk_assessment || sessionReport.call_simulation
     );
     if (!hasResults) return;
     const report = { ...sessionReport, exported_at: new Date().toISOString() };
@@ -116,10 +114,6 @@ export default function Home() {
     updateSessionReport({ risk_assessment: { captured_at: new Date().toISOString(), result } });
   };
 
-  const captureExperiment = (result: ExperimentResult) => {
-    updateSessionReport({ experiment: { captured_at: new Date().toISOString(), result } });
-  };
-
   const launchScenarioEvaluation = (sample: LabAudioSample) => {
     riskRunSequence.current += 1;
     setDemoAudio({ filename: sample.audio_file, transcript: sample.transcript });
@@ -142,7 +136,7 @@ export default function Home() {
 
   const reportAvailable = Boolean(
     sessionReport.generated_voice || sessionReport.acoustic_analysis ||
-    sessionReport.risk_assessment || sessionReport.experiment || sessionReport.call_simulation
+    sessionReport.risk_assessment || sessionReport.call_simulation
   );
 
   const resetSessionAfterPurge = () => {
@@ -270,11 +264,6 @@ export default function Home() {
                 autoRunScenario={riskScenarioRun}
                 onAssessmentComplete={captureRiskAssessment}
               />
-            </div>
-          )}
-          {visitedTabs.includes("experiments") && (
-            <div hidden={activeTab !== "experiments"}>
-              <ExperimentsLabTab key={`experiments-${sessionVersion}`} onExperimentComplete={captureExperiment} />
             </div>
           )}
           {visitedTabs.includes("conclusions") && (

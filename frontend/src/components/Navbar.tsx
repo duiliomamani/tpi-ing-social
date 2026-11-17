@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ShieldAlert, Presentation, Trash2, FileDown } from "lucide-react";
+import React from "react";
+import { ShieldAlert, Presentation, Trash2, FileDown } from "lucide-react";
 import { purgeLabData } from "@/lib/api";
 
 interface NavbarProps {
@@ -25,26 +25,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   onExportReport,
   localOperationBusy
 }) => {
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const primaryTabs = [
     { id: "dashboard", label: "Inicio" },
     { id: "generation", label: "1. Voz" },
     { id: "simulation", label: "2. Sala de llamadas" },
     { id: "detection", label: "3. Análisis acústico" },
     { id: "confidence", label: "4. Evaluación de riesgo" },
+    { id: "conclusions", label: "5. Protocolo" },
   ];
-  const secondaryTabs = [
-    { id: "experiments", label: "Benchmark experimental" },
-    { id: "conclusions", label: "Protocolo y conclusiones" },
-  ];
-
-  useEffect(() => {
-    setMobileMoreOpen(false);
-  }, [activeTab]);
 
   const handlePurge = async () => {
     if (localOperationBusy) return;
-    if (confirm("¿Eliminar cargas, clones de esta sesión, derivados experimentales, grabaciones C/D registradas y metadatos locales?")) {
+    if (confirm("¿Eliminar cargas, clones de esta sesión, audios derivados, grabaciones C/D registradas y metadatos locales?")) {
       try {
         const res = await purgeLabData();
         onDataPurged();
@@ -98,7 +90,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
-          <MoreNavigationMenu items={secondaryTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
         </nav>
 
         {/* Action Controls */}
@@ -160,119 +151,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               {tab.label}
             </button>
           ))}
-          <button
-            type="button"
-            aria-expanded={mobileMoreOpen}
-            aria-controls="more-navigation-mobile"
-            onClick={() => setMobileMoreOpen((value) => !value)}
-            className={`inline-flex shrink-0 items-center gap-1 rounded px-2.5 py-1 text-xs ${
-              secondaryTabs.some((tab) => tab.id === activeTab) || mobileMoreOpen
-                ? "bg-cyan-500/20 font-bold text-cyan-300"
-                : "text-slate-400"
-            }`}
-          >
-            Más <ChevronDown className={`h-3.5 w-3.5 transition-transform ${mobileMoreOpen ? "rotate-180" : ""}`} />
-          </button>
         </div>
-        {mobileMoreOpen && (
-          <div id="more-navigation-mobile" className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Herramientas complementarias">
-            {secondaryTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                aria-current={activeTab === tab.id ? "page" : undefined}
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  activeTab === tab.id
-                    ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
-                    : "border-slate-700 bg-slate-900 text-slate-300"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </header>
   );
 };
-
-interface MoreNavigationMenuProps {
-  items: { id: string; label: string }[];
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-}
-
-function MoreNavigationMenu({ items, activeTab, setActiveTab }: MoreNavigationMenuProps) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuId = "more-navigation-desktop";
-  const selected = items.some((item) => item.id === activeTab);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeOnPointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((value) => !value)}
-        className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-          selected || open
-            ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-            : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
-        }`}
-      >
-        Más <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div
-          id={menuId}
-          className="absolute right-0 top-full z-50 mt-2 min-w-56 rounded-xl border border-slate-700 bg-slate-950 p-1.5 shadow-2xl"
-          aria-label="Herramientas complementarias"
-        >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-current={activeTab === item.id ? "page" : undefined}
-              onClick={() => {
-                setActiveTab(item.id);
-                setOpen(false);
-              }}
-              className={`block w-full rounded-lg px-3 py-2 text-left text-xs transition ${
-                activeTab === item.id ? "bg-cyan-500/15 font-semibold text-cyan-200" : "text-slate-300 hover:bg-slate-800"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

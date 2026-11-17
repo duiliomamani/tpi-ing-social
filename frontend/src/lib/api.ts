@@ -7,8 +7,7 @@ import {
   LabAudioSample,
   AudioAnalysisResponse,
   SocialEngineeringAnalysisResponse,
-  MultilayerRiskAssessmentResponse,
-  ExperimentResult
+  MultilayerRiskAssessmentResponse
 } from "./types";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/+$/, "");
@@ -185,22 +184,6 @@ export async function evaluateComprehensiveRisk(
     })
   });
   if (!res.ok) throw new Error(await responseErrorMessage(res, "Error en la evaluación de confianza multicapa"));
-  return res.json();
-}
-
-export async function runBenchmarkExperiment(
-  humanSample: string = "scenario_c.wav",
-  synthSample: string = "scenario_a.wav"
-): Promise<ExperimentResult> {
-  const res = await fetch(`${API_BASE}/experiments/run-benchmark`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      human_sample: humanSample,
-      synthetic_sample: synthSample
-    })
-  });
-  if (!res.ok) throw new Error(await responseErrorMessage(res, "Error ejecutando benchmark experimental"));
   return res.json();
 }
 

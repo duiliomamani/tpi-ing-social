@@ -183,41 +183,6 @@ export interface MultilayerRiskAssessmentResponse {
   scientific_disclaimer: string;
 }
 
-export interface ConfusionMatrixData {
-  true_positives: number;
-  true_negatives: number;
-  false_positives: number;
-  false_negatives: number;
-}
-
-export interface ExperimentMetrics {
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1_score: number;
-  false_positive_rate: number;
-  false_negative_rate: number;
-  equal_error_rate_estimate: number | null;
-  total_samples: number;
-  conditions_tested: string[];
-}
-
-export interface ExperimentResult {
-  experiment_id: string;
-  title: string;
-  detector_engine: string;
-  dataset_summary: string;
-  confusion_matrix: ConfusionMatrixData;
-  metrics: ExperimentMetrics;
-  eer_curve_points: Array<{
-    threshold: number;
-    false_positive_rate: number;
-    false_negative_rate: number;
-  }>;
-  timestamp: string;
-  evaluation_notes: string;
-}
-
 export interface DemoSessionReport {
   schema_version: 1;
   exported_at: string;
@@ -238,7 +203,6 @@ export interface DemoSessionReport {
     visualization_summary: { sample_rate: number; duration: number; channels: number };
   };
   risk_assessment?: { captured_at: string; result: MultilayerRiskAssessmentResponse };
-  experiment?: { captured_at: string; result: ExperimentResult };
   call_simulation?: {
     captured_at: string;
     scenario: string;

@@ -22,7 +22,7 @@ interface ConclusionsTabProps {
 export const ConclusionsTab: React.FC<ConclusionsTabProps> = ({ onDataPurged, localOperationBusy }) => {
   const handlePurge = async () => {
     if (localOperationBusy) return;
-    if (confirm("¿Eliminar cargas, clones de esta sesión, derivados experimentales, grabaciones C/D registradas y metadatos locales?")) {
+    if (confirm("¿Eliminar cargas, clones de esta sesión, audios derivados, grabaciones C/D registradas y metadatos locales?")) {
       try {
         const res = await purgeLabData();
         onDataPurged();
@@ -55,9 +55,8 @@ export const ConclusionsTab: React.FC<ConclusionsTabProps> = ({ onDataPurged, lo
           </div>
           <h3 className="text-sm font-bold text-white mb-1.5">1. La Acústica No es Suficiente</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            El benchmark mide cómo responde el detector experimental de VoiceShield a las condiciones que ejecutaste.
-            Compará los valores observados: una sola muestra fuente por clase no alcanza para generalizar ni afirmar
-            una tasa de error de campo.
+            El detector acústico de VoiceShield ofrece una señal orientativa para el audio analizado. Una muestra aislada
+            no alcanza para generalizar ni afirmar una tasa de error de campo.
           </p>
         </div>
 
@@ -154,7 +153,7 @@ export const ConclusionsTab: React.FC<ConclusionsTabProps> = ({ onDataPurged, lo
             <span>Saneamiento Ético de Datos del Laboratorio</span>
           </h4>
           <p className="text-xs text-slate-300 mt-1 max-w-xl">
-            Elimina cargas, clones generados, variantes experimentales, grabaciones humanas C/D registradas y metadatos
+            Elimina cargas, clones generados, audios derivados, grabaciones humanas C/D registradas y metadatos
             locales. Conserva A/B sintéticas, pesos de modelos y JSON ya descargados; el borrado de archivos no es forense.
           </p>
         </div>

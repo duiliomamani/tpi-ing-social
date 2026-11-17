@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Activity,
   ArrowRight,
   AudioWaveform,
   Bot,
@@ -73,15 +72,6 @@ const WORKFLOW_STEPS = [
     icon: Layers,
     color: "emerald"
   },
-  {
-    number: "05",
-    title: "Comparar y documentar",
-    description: "Medí la robustez ante ruido, compresión y filtro telefónico; exportá el informe de sesión.",
-    destination: "experiments",
-    action: "Abrir benchmark",
-    icon: Activity,
-    color: "amber"
-  }
 ];
 
 const MODEL_CARDS = [
@@ -210,7 +200,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     Boolean(sessionReport.call_simulation),
     Boolean(sessionReport.acoustic_analysis || sessionReport.risk_assessment),
     Boolean(sessionReport.risk_assessment),
-    Boolean(sessionReport.experiment),
   ];
   const completedCount = stageComplete.filter(Boolean).length;
   const nextStageIndex = stageComplete.findIndex((complete) => !complete);
@@ -235,9 +224,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     sessionReport.risk_assessment
       ? `Nivel operativo: ${sessionReport.risk_assessment.result.operational_risk_level}`
       : "Pendiente de revisar intención e identidad",
-    sessionReport.experiment
-      ? `${sessionReport.experiment.result.metrics.total_samples} variantes comparadas`
-      : "Benchmark todavía no ejecutado",
   ];
 
   const focusScenarioMatrix = () => {
@@ -334,7 +320,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         >
           <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${(completedCount / WORKFLOW_STEPS.length) * 100}%` }} />
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {WORKFLOW_STEPS.map((step, index) => {
             const Icon = step.icon;
             const isComplete = stageComplete[index];
@@ -350,7 +336,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 key={step.number}
                 type="button"
                 onClick={() => {
-                  if (isComplete && index === 4 && reportAvailable) onExportReport();
+                  if (isComplete && index === WORKFLOW_STEPS.length - 1 && reportAvailable) onExportReport();
                   else if (index === 0 && !isComplete) focusScenarioMatrix();
                   else onNavigate(step.destination);
                 }}
@@ -371,7 +357,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">{step.description}</p>
                 <p className="mt-3 min-h-8 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">{stageEvidence[index]}</p>
                 <span className="mt-3 inline-flex items-center space-x-1.5 text-xs font-semibold text-cyan-300">
-                  <span>{isComplete && index === 4 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext && index === 0 ? "Elegir caso" : isNext ? "Continuar ahora" : step.action}</span>
+                  <span>{isComplete && index === WORKFLOW_STEPS.length - 1 && reportAvailable ? "Descargar informe" : isComplete ? "Revisar etapa" : isNext && index === 0 ? "Elegir caso" : isNext ? "Continuar ahora" : step.action}</span>
                   <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </span>
               </button>

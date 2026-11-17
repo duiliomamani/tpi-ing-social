@@ -8,7 +8,7 @@ Este archivo describe cómo debe leerse el repositorio frente al informe present
 
 | Tema del informe | Estado en el repositorio | Lectura para la demostración |
 | --- | --- | --- |
-| Generación local de voz | Qwen3-TTS 0.6B mediante MLX, con referencia breve y transcripción editable. | La interfaz solicita autorización; es una declaración del operador. No se fija F₀ ni se promete una copia exacta de la voz. |
+| Generación local de voz | Qwen3-TTS 0.6B mediante PyTorch CPU en un servicio Docker Compose, con referencia breve y transcripción editable. | La interfaz solicita autorización; es una declaración del operador. No se fija F₀ ni se promete una copia exacta de la voz. |
 | AASIST | El adaptador disponible es un baseline acústico experimental propio; el código no integra la arquitectura/checkpoint upstream AASIST. | Presentar el motor por el nombre que devuelve la interfaz. No reportar sus salidas como resultados de AASIST. |
 | PerTh / marca de procedencia | PerthNet se usa si está instalado. En su ausencia funciona una marca spread-spectrum experimental de VoiceShield. | La detección reporta la firma consultada; no prueba identidad, intención ni origen por sí sola. |
 | Análisis semántico | Qwen3.5:2B en Ollama si está disponible; de lo contrario, reglas heurísticas locales. | Revisar el campo `analyzer_engine` antes de explicar resultados; ambos motores tienen capacidades distintas. |

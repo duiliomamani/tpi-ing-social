@@ -689,9 +689,9 @@ export const GenerationLabTab: React.FC<GenerationLabTabProps> = ({
           )}
 
           <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p className="text-xs font-semibold text-slate-200">Motor de clonación: Qwen3-TTS 0.6B · MLX en el host</p>
+            <p className="text-xs font-semibold text-slate-200">Motor de clonación: Qwen3-TTS 0.6B · PyTorch en Docker</p>
             <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-              Ollama en Docker Compose genera texto; Qwen3-TTS sintetiza voz en un servicio MLX separado del host (Mac Apple Silicon en esta configuración). Usa el recorte y su transcripción como referencia; no fija el tono y la calidad se evalúa escuchando la salida.
+              Ollama genera texto y el servicio Qwen3-TTS corre en Docker Compose sobre CPU, sin depender de Apple Silicon. La primera síntesis descarga los pesos del modelo; usa el recorte y su transcripción como referencia, sin fijar el tono.
             </p>
           </div>
 

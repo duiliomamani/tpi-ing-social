@@ -30,6 +30,7 @@ Trabajo Práctico Integrador / TPI — Licenciatura en Seguridad Informática.
 tpi-ing-social/
 ├── backend/
 │   ├── Dockerfile             # API FastAPI con PyTorch CPU
+│   ├── Dockerfile.qwen-tts    # Servicio Qwen3-TTS con PyTorch CPU
 │   ├── .dockerignore
 │   ├── app/
 │   │   ├── adapters/          # Interfaces y adaptadores desacoplados
@@ -40,7 +41,7 @@ tpi-ing-social/
 │   │   │   └── whisper_adapter.py     # faster-whisper en español
 │   │   ├── api/routers/       # Endpoints REST y WebSocket (FastAPI)
 │   │   │   └── call_simulation.py     # Turnos y acciones de la sala local
-│   │   ├── qwen_tts_sidecar.py        # Síntesis progresiva aislada con MLX
+│   │   ├── qwen_tts_service.py        # Servicio de síntesis Qwen3-TTS
 │   │   ├── core/              # Configuración y base de datos SQLite
 │   │   ├── models/            # Esquemas Pydantic tipados
 │   │   ├── services/          # Lógica de negocio independiente; incluye call_simulation_service.py
@@ -51,7 +52,7 @@ tpi-ing-social/
 │   │   └── experiments/       # Muestras procesadas con FFmpeg
 │   ├── tests/                 # Suite de pruebas unitarias y de integración
 │   ├── requirements.txt
-│   └── requirements-mlx-tts.txt  # Entorno aislado de Qwen3-TTS para Apple Silicon
+│   └── requirements-qwen-tts.txt  # Dependencias del servicio Qwen3-TTS
 ├── frontend/
 │   ├── Dockerfile             # Next.js en modo producción
 │   ├── .dockerignore
@@ -64,8 +65,8 @@ tpi-ing-social/
 ├── scripts/
 │   ├── generate_demo_samples.py  # Genera A/B TTS y registra C/D humanos consentidos
 │   └── setup_environment.sh      # Preparación opcional para desarrollo nativo
-├── compose.yaml                 # Frontend, API, Ollama y descarga del modelo
-├── .env.example                 # Clave local del sintetizador nativo
+├── compose.yaml                 # Frontend, API, Ollama, Qwen3-TTS y modelos
+├── .env.example                 # Configuración local de servicios
 ├── LIMITATIONS.md             # Documentación exhaustiva de limitaciones
 └── README.md
 ```
@@ -76,7 +77,7 @@ tpi-ing-social/
 
 - **Docker Desktop** con Docker Compose v2.
 - **Diálogo:** Qwen3.5:2B en Ollama, dentro de Docker Compose.
-- **Clonación de voz en la implementación actual:** Qwen3-TTS usa MLX en un servicio local separado de Compose y requiere macOS con Apple Silicon. La aplicación y Ollama pueden ejecutarse con Compose en otros equipos; allí la sala usa la voz española del navegador como alternativa, sin clonar la muestra.
+- **Clonación de voz:** Qwen3-TTS Base 0.6B usa PyTorch CPU en un contenedor de Compose. Es la configuración portable para macOS, Linux y Windows con Docker Desktop; la inferencia por CPU puede tardar más que en un equipo con aceleración compatible.
 
 ---
 
@@ -90,7 +91,7 @@ cd tpi-ing-social
 
 ### 2. Iniciar la Aplicación
 
-Levanta el frontend, el backend y Ollama. La primera vez, Docker descarga Qwen3.5:2B en el volumen persistente `ollama_data`; la API espera a que termine esa descarga antes de arrancar.
+Levanta el frontend, el backend, Ollama y el servicio Qwen3-TTS. La primera vez, Docker descarga Qwen3.5:2B en `ollama_data`; Qwen3-TTS descarga sus pesos al solicitar la primera síntesis y los conserva en `huggingface_cache`.
 
 ```bash
 cp .env.example .env
@@ -102,7 +103,7 @@ Una vez iniciado:
 
 Los puertos publicados por defecto son `3002` y `8003` para convivir con servicios comunes que ya usan `3000` y `8000`. Se pueden cambiar con `VOICESHIELD_FRONTEND_PORT` y `VOICESHIELD_API_PORT` en `.env`; si cambiás el puerto de API, reconstruí frontend y backend con `docker compose up --build`.
 
-Los contenedores de frontend y backend se construyen para producción. La API usa PyTorch CPU; Ollama se ejecuta en su propio contenedor. Las cargas y resultados permanecen en `backend/data`; los pesos de Ollama quedan en su volumen y no se agregan a Git.
+Los contenedores de frontend y backend se construyen para producción. Ollama genera el diálogo; Qwen3-TTS sintetiza y clona la voz mediante su propio servicio PyTorch CPU. Los dos modelos usan volúmenes persistentes y no se agregan a Git. Las cargas y resultados permanecen en `backend/data`.
 
 Para detener los servicios, presioná `Ctrl+C` en esa terminal. Para detener y retirar los contenedores, ejecutá `docker compose down`; los pesos descargados y los datos locales se conservan.
 
@@ -110,31 +111,23 @@ Para detener los servicios, presioná `Ctrl+C` en esa terminal. Para detener y r
 
 Para mostrar únicamente la presentación interactiva, sin iniciar backend, Ollama ni sintetizador, ejecutá `./presentacion.sh` desde la raíz (o `npm run presentacion` desde `frontend/`). Abre la página estática en el navegador y sirve el contenido solo en `127.0.0.1`; `Ctrl+C` detiene el servidor.
 
-### Servicio de clonación Qwen3-TTS/MLX
+### Servicio de clonación Qwen3-TTS
 
-Docker Compose inicia el frontend, la API y Ollama con Qwen3.5:2B para generar texto. Qwen3-TTS no corre dentro de Ollama ni en los contenedores de este Compose: en esta implementación, la clonación usa MLX/Metal en un servicio nativo separado del Mac y se conecta al backend por `host.docker.internal`. El requisito de Apple Silicon corresponde a este runtime MLX; no a Docker Compose ni a Ollama. La primera vez, prepará su entorno y descargá los pesos:
+Ollama usa Qwen3.5:2B para redactar y analizar el diálogo. Qwen3-TTS es otro modelo y se ejecuta en el contenedor `qwen-tts`, con el paquete oficial `qwen-tts` y PyTorch CPU. Compose conecta el backend y el sintetizador por la red interna; no hay un proceso MLX en el host ni se usa `host.docker.internal`.
 
-```bash
-python3.12 -m venv backend/.venv-mlx
-backend/.venv-mlx/bin/python -m pip install -r backend/requirements-mlx-tts.txt
-backend/.venv-mlx/bin/hf download mlx-community/Qwen3-TTS-12Hz-0.6B-Base-8bit
-cp .env.example .env
-```
-
-En otra terminal, desde la raíz del repositorio, iniciá el sintetizador. Si cambiaste `QWEN_TTS_API_KEY` en `.env`, usa el mismo valor en esta terminal.
+La imagen puede correr en macOS, Linux y Windows con Docker. La primera síntesis descarga `Qwen/Qwen3-TTS-12Hz-0.6B-Base` desde Hugging Face; los pesos quedan en el volumen `huggingface_cache`. Las generaciones se ejecutan en CPU y pueden tardar más que en un runtime acelerado. Ajustá `QWEN_TTS_CPU_THREADS` para limitar los hilos de CPU (por defecto, 4) o `QWEN_TTS_MODEL` para elegir otro checkpoint compatible.
 
 ```bash
-if [ -f .env ]; then set -a; . ./.env; set +a; fi
-QWEN_TTS_API_KEY="${QWEN_TTS_API_KEY:-local-demo-only}" PYTHONPATH=backend backend/.venv-mlx/bin/uvicorn app.qwen_tts_sidecar:app --host 0.0.0.0 --port 8001
+docker compose up --build
 ```
 
-La API del sintetizador requiere esa clave compartida. En equipos sin Apple Silicon se puede omitir este proceso: el resto de la aplicación seguirá funcionando con Docker Compose y Ollama; la sala informa que usará una voz del navegador sin clonar la muestra.
+La clave compartida `QWEN_TTS_API_KEY` autentica las solicitudes internas del backend al sintetizador. El puerto 8001 no se publica en el host.
 
-En **2. Sala de Llamadas**, escribí un contexto ficticio —por ejemplo, quién llama, a quién, por qué y qué solicita— y cargá una grabación propia o autorizada. El botón **Usar ejemplo** repone el sorteo de MerchPay; también podés crear otro escenario, como el presidente de un club ficticio que llama a sus socios por una transferencia vinculada a un pase. Qwen presenta el rol, el motivo y el pedido, varía la redacción y adapta los turnos siguientes a tus respuestas. El objetivo didáctico queda como contexto y no se pronuncia. Revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. Qwen3.5 analiza las señales y Qwen3-TTS reproduce el diálogo progresivamente. Podés responder por texto, micrófono o acciones defensivas. La sala es local: no hace llamadas ni procesa transferencias. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
+En **2. Sala de Llamadas**, escribí un contexto ficticio —por ejemplo, quién llama, a quién, por qué y qué solicita— y cargá una grabación propia o autorizada. El botón **Usar ejemplo** repone el sorteo de MerchPay; también podés crear otro escenario, como el presidente de un club ficticio que llama a sus socios por una transferencia vinculada a un pase. Qwen presenta el rol, el motivo y el pedido, varía la redacción y adapta los turnos siguientes a tus respuestas. El objetivo didáctico queda como contexto y no se pronuncia. Revisá la transcripción del recorte. Para una fuente de más de 12 segundos, escuchala y elegí inicio y fin de un tramo de 5–12 segundos; Whisper transcribe ese fragmento automáticamente. Qwen3.5 analiza las señales y Qwen3-TTS sintetiza cada turno completo para reproducirlo con claridad. Podés responder por texto, micrófono o acciones defensivas. La sala es local: no hace llamadas ni procesa transferencias. Al terminar, la devolución resume los indicios del guion y la respuesta del participante.
 
 ### Generación de voz con Qwen3-TTS
 
-La pestaña de generación y la sala de llamadas usan Qwen3-TTS Base 0.6B cuantizado a 8 bits mediante MLX/Metal en el servicio del host. Ollama genera texto con Qwen3.5:2B; no ejecuta el sintetizador. La referencia y la transcripción se procesan localmente y no se envían a un proveedor externo. Para clonar voces, iniciá el servicio Qwen3-TTS descrito arriba. La API limita el texto nuevo a 400 caracteres y la transcripción de referencia a 800.
+La pestaña de generación y la sala de llamadas usan Qwen3-TTS Base 0.6B con PyTorch CPU en el servicio `qwen-tts` de Docker Compose. Ollama genera texto con Qwen3.5:2B; no sirve el modelo de clonación. El paquete oficial expone generación por voz de referencia mediante `ref_audio` y su transcripción `ref_text`. La referencia y la transcripción se procesan localmente y no se envían a un proveedor externo. La API limita el texto nuevo a 400 caracteres y la transcripción de referencia a 800.
 
 Podés cargar una grabación fuente de hasta 10 minutos, escucharla y seleccionar manualmente un fragmento de 5–12 segundos. faster-whisper transcribe localmente ese recorte y el texto queda editable antes de generar. Qwen condiciona la voz con el audio y la transcripción; no aplica un bloqueo fijo de frecuencia fundamental. La similitud y naturalidad deben evaluarse escuchando la salida. El tiempo de generación depende del hardware y la longitud del texto.
 
@@ -146,7 +139,7 @@ El generador A/B necesita Piper en `backend/.venv/bin/piper` y la voz española 
 
 ## 💻 Ejecución en otros sistemas
 
-El flujo recomendado en macOS, Linux y Windows con Docker Desktop es `docker compose up --build`, siguiendo la puesta en marcha anterior. La sala 3D, la API y Ollama/Qwen3.5:2B funcionan en los contenedores. La clonación Qwen3-TTS/MLX de esta implementación requiere macOS con Apple Silicon y se inicia en una terminal aparte; en otros equipos la sala sigue disponible y usa la voz española del navegador como alternativa.
+El flujo recomendado en macOS, Linux y Windows con Docker Desktop es `docker compose up --build`. La sala 3D, la API, Ollama/Qwen3.5:2B y Qwen3-TTS/PyTorch CPU se ejecutan en contenedores. El perfil CPU evita depender de Apple Silicon, CUDA o una GPU específica; a cambio, la síntesis puede ser lenta. Los pesos se descargan una vez y quedan en el volumen `huggingface_cache`.
 
 ---
 

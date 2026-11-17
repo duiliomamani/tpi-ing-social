@@ -1,5 +1,4 @@
 .venv
-.venv-mlx
 __pycache__
 *.py[cod]
 data

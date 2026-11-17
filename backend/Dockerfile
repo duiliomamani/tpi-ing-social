@@ -11,7 +11,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY requirements.txt ./requirements.txt
 
-# Keep this runtime CPU-only. The MLX voice service runs natively on macOS.
+# Keep the API runtime CPU-only. Qwen3-TTS runs in its separate PyTorch service.
 # PyPI defaults to TorchCodec's CUDA wheel on Linux; install the matching CPU wheel.
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch torchaudio \
     && pip install -r requirements.txt \

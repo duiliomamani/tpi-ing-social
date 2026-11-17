@@ -22,7 +22,7 @@ class Settings(BaseModel):
     QWEN_TTS_BASE_URL: str = os.getenv("QWEN_TTS_BASE_URL", "http://127.0.0.1:8001")
     QWEN_TTS_API_KEY: str = os.getenv("QWEN_TTS_API_KEY", "")
     QWEN_TTS_MODEL: str = os.getenv(
-        "QWEN_TTS_MODEL", "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-8bit"
+        "QWEN_TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
     )
     
     WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")

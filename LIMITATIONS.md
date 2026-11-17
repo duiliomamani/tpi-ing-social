@@ -42,7 +42,7 @@ VoiceShield Lab es una prueba de concepto académica para estudiar generación a
 ## 6. Generación de voz y autorización
 
 - Qwen3-TTS usa una referencia de voz breve y una transcripción revisada. La calidad, el parecido, la prosodia y el tiempo dependen de la muestra, el texto y el hardware; el modelo no fija la frecuencia fundamental ni garantiza similitud de identidad o naturalidad.
-- La aplicación, la API y Ollama/Qwen3.5:2B se ejecutan con Docker Compose. El sintetizador Qwen3-TTS no está servido por Ollama: la configuración actual requiere un servicio MLX nativo en un Mac con Apple Silicon. En otros equipos, la sala usa la voz del navegador y no clona la referencia.
+- Ollama/Qwen3.5:2B genera el diálogo; no sirve el modelo de clonación Qwen3-TTS. Este último corre en un contenedor Docker independiente con PyTorch CPU para funcionar en macOS, Linux y Windows sin GPU específica. El coste es mayor tiempo de síntesis; la primera generación también descarga los pesos. El uso de CUDA o aceleradores no está configurado en Compose.
 - La interfaz solicita autorización y el backend rechaza solicitudes sin la confirmación enviada por el cliente. Es una declaración del operador, no verificación legal o biométrica.
 - La política del proyecto limita el uso a voces propias o consentidas y guiones académicos. No hay verificación automática para impedir una suplantación o detectar una figura pública.
 

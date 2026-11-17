@@ -2,7 +2,7 @@
 
 ## Motor integrado
 
-VoiceShield Lab usa Qwen3-TTS Base 0.6B cuantizado a 8 bits mediante MLX/Metal para sintetizar audio. En la implementación actual, ese servicio corre localmente en macOS con Apple Silicon. La pestaña de Generación y la sala de llamadas utilizan el mismo motor; Ollama/Qwen3.5 redacta los turnos de la simulación y Qwen3-TTS los convierte en audio.
+VoiceShield Lab usa Qwen3-TTS Base 0.6B mediante el paquete oficial `qwen-tts` y PyTorch CPU en un contenedor Docker. La pestaña de Generación y la sala de llamadas utilizan el mismo motor; Ollama/Qwen3.5 redacta los turnos de la simulación y Qwen3-TTS los convierte en audio.
 
 La síntesis se condiciona con un recorte de audio autorizado y su transcripción revisada. La aplicación permite cargar una grabación fuente de hasta 10 minutos, seleccionar un tramo continuo de 5–12 segundos y transcribir ese recorte localmente con faster-whisper. El audio y el texto permanecen editables antes de sintetizar. La API limita el texto nuevo a 400 caracteres y la transcripción de referencia a 800.
 
@@ -12,9 +12,9 @@ La marca de procedencia del laboratorio se puede aplicar después de la síntesi
 
 ## Servicio local y contenedores
 
-Docker Compose levanta frontend, API y Ollama con Qwen3.5:2B para el diálogo. Qwen3-TTS no se ejecuta mediante Ollama ni dentro de esos contenedores: en esta implementación se ejecuta como proceso MLX nativo de macOS porque Docker Desktop no da acceso a Metal desde el contenedor Linux. El requisito de Apple Silicon corresponde a este runtime MLX, no a Compose/Ollama; para sintetizar en otros equipos hace falta configurar otro backend compatible. La API del contenedor se conecta a ese servicio del host mediante `host.docker.internal:8001` y envía los bytes del recorte por una conexión autenticada. En Linux o Windows, la aplicación sigue funcionando con Compose y Ollama, pero la voz clonada se reemplaza por la voz española del navegador.
+Docker Compose levanta frontend, API, Ollama y el servicio `qwen-tts`. Ollama carga Qwen3.5:2B para el diálogo; el contenedor PyTorch carga `Qwen/Qwen3-TTS-12Hz-0.6B-Base` para la clonación. Son servicios separados porque Ollama en esta configuración no ejecuta el modelo Qwen3-TTS de voz de referencia. La comunicación backend-sintetizador usa la red interna de Compose y una clave compartida. El runtime CPU es común a macOS, Linux y Windows con Docker, sin depender de MLX/Metal o CUDA. Los pesos se descargan en el primer uso y persisten en el volumen `huggingface_cache`.
 
-El servicio conserva un trabajador persistente para mantener el contexto requerido por MLX. La salida se reproduce cuando el turno completo está listo; este flujo evita cortes entre fragmentos y prioriza un diálogo claro. La transmisión por fragmentos puede reducir la espera inicial en otros modos, pero no elimina el tiempo de inferencia previo al primer audio.
+El servicio conserva el modelo en memoria después de cargarlo. La API entrega cada audio completo cuando termina la inferencia y la sala lo reproduce como un turno continuo; el uso de CPU puede alargar la espera, especialmente en la primera generación.
 
 Si el sintetizador local no está disponible, la interfaz informa el error. La voz española del navegador es una alternativa de lectura y no clona la muestra.
 
@@ -31,7 +31,6 @@ La generación de ejemplos A/B del Dashboard es independiente del clonador: usa 
 ## Referencias
 
 - [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)
-- [MLX-Audio: clonación y streaming de Qwen3-TTS](https://github.com/Blaizzy/mlx-audio/blob/main/mlx_audio/tts/models/qwen3_tts/README.md)
 - [Clonación de voz KikiVoice](https://kikivoice.ai/ai-voice-cloning/es)
 - [FAQ de KikiVoice](https://kikivoice.ai/faq)
 - [Privacidad de KikiVoice](https://kikivoice.ai/privacy)

@@ -42,10 +42,10 @@ def get_system_health():
             device="Docker Compose · Ollama (11434)"
         ),
         "qwen3_tts": ModelStatus(
-            name="Qwen3-TTS 0.6B · MLX (servicio de voz)",
+            name="Qwen3-TTS 0.6B · PyTorch (Docker)",
             available=simulator_status["tts_available"],
             status_message=simulator_status["tts_message"],
-            device="Host Mac Apple Silicon · puerto 8001 (fuera de Compose/Ollama)"
+            device="CPU · contenedor Qwen3-TTS en Docker Compose"
         ),
         "faster_whisper": ModelStatus(
             name=f"faster-whisper ({settings.WHISPER_MODEL_SIZE})",

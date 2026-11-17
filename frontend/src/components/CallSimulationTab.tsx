@@ -467,11 +467,11 @@ export function CallSimulationTab({ isActive, onBusyChange, onComplete }: CallSi
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <ModelChip label="Diálogo" value={status?.llm_model || "Qwen3.5:2B"} available={status?.llm_available ?? false} />
-            <ModelChip label="Voz" value="Qwen3-TTS · MLX host" available={status?.tts_available ?? false} />
+            <ModelChip label="Voz" value="Qwen3-TTS · Docker" available={status?.tts_available ?? false} />
           </div>
         </div>
         <p className="relative mt-3 text-[10px] leading-4 text-slate-500">
-          Qwen3.5:2B en Ollama/Compose redacta el diálogo. La clonación Qwen3-TTS usa un servicio MLX separado en el host; no se ejecuta mediante Ollama.
+          Ollama con Qwen3.5:2B redacta el diálogo y el contenedor Qwen3-TTS sintetiza la voz desde la referencia autorizada. Ambos servicios se inician con Docker Compose.
         </p>
         <div className="relative mt-6 flex flex-wrap gap-2 text-[11px] text-slate-400">
           <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1.5">Solo localhost</span>

@@ -745,7 +745,7 @@ def detect_defensive_action(text: str, action: Optional[str] = None) -> Optional
 
 
 class CallSimulationService:
-    """Uses one local Ollama model for dialogue and an isolated MLX TTS sidecar."""
+    """Uses Ollama for dialogue and the Qwen3-TTS Docker service for audio."""
 
     def __init__(self) -> None:
         self.ollama_url = settings.OLLAMA_BASE_URL.rstrip("/")

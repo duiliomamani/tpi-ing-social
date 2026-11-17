@@ -1,4 +1,4 @@
-"""HTTP adapter for the local Qwen3-TTS MLX sidecar."""
+"""HTTP adapter for the cross-platform Qwen3-TTS PyTorch service."""
 
 import base64
 import json
@@ -16,11 +16,11 @@ from app.core.config import ensure_data_directories, settings
 
 
 class QwenTTSAdapter(BaseTTSAdapter):
-    """Generate authorized voice clones through the native local MLX service."""
+    """Generate authorized voice clones through the local Docker service."""
 
     def __init__(self, watermarker=None):
-        self.engine_name = "Qwen3-TTS 0.6B · MLX (servicio local del host)"
-        self.device = "Mac Apple Silicon · MLX sidecar (fuera de Compose/Ollama)"
+        self.engine_name = "Qwen3-TTS 0.6B · PyTorch (Docker)"
+        self.device = "CPU · servicio Qwen3-TTS en Docker Compose"
         self.watermarker = watermarker
         self.base_url = settings.QWEN_TTS_BASE_URL.rstrip("/")
 
@@ -109,7 +109,7 @@ class QwenTTSAdapter(BaseTTSAdapter):
                             if audio.size:
                                 chunks.append(audio.copy())
                                 received_chunk = True
-                                self._progress(progress_callback, f"Recibiendo audio local de Qwen3-TTS ({len(chunks)} fragmentos)…")
+                                self._progress(progress_callback, "Audio completo recibido desde Qwen3-TTS.")
                         elif event_type == "complete":
                             break
         except httpx.HTTPError as exc:
